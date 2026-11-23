@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FinFluent — English for Finance (C1 & TOEIC 800+)</title>
+  <meta name="description" content="Tự học tiếng Anh tài chính: đọc báo kinh tế, tra và lưu thuật ngữ, ôn tập ngắt quãng, luyện đề TOEIC 800+ và C1." />
+  <meta name="theme-color" content="#0f6b4f" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f6b4f'/%3E%3Cpath d='M9 23V9h10v3h-6.5v3H18v3h-5.5v5z' fill='white'/%3E%3Cpath d='M20 23l3-6 3 6' stroke='%23f2c14e' stroke-width='2' fill='none'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#today" id="brand-link">
+      <span class="brand-mark" aria-hidden="true">F<span>f</span></span>
+      <span class="brand-text">
+        <strong id="app-name">FinFluent</strong>
+        <small id="app-tagline">English for Finance</small>
+      </span>
+    </a>
+    <nav class="nav" id="nav" aria-label="Điều hướng chính"></nav>
+    <div class="accent-toggle" role="group" aria-label="Giọng phát âm">
+      <button id="accent-us" type="button">US</button>
+      <button id="accent-uk" type="button">UK</button>
+    </div>
+  </header>
+
+  <div id="banner" class="banner hidden"></div>
+
+  <main id="view" class="view" tabindex="-1"></main>
+
+  <!-- Bảng tra từ -->
+  <div id="sheet-backdrop" class="sheet-backdrop hidden"></div>
+  <aside id="sheet" class="sheet" aria-hidden="true" aria-label="Tra từ"></aside>
+
+  <div id="toast" class="toast hidden" role="status"></div>
+
+  <!-- Nội dung (bạn sửa trong thư mục data/) -->
+  <script src="data/config.js"></script>
+  <script src="data/terms.js"></script>
+  <script src="data/articles.js"></script>
+  <script src="data/quiz.js"></script>
+  <!-- Code ứng dụng -->
+  <script src="js/app.js"></script>
+</body>
+</html>
