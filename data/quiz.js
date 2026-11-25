@@ -1,5 +1,5 @@
 // ============================================================
-// FinFluent - CÂU HỎI TRẮC NGHIỆM
+// WordStreet - CÂU HỎI TRẮC NGHIỆM
 // Cách thêm câu hỏi mới:
 //   1. Sao chép một dòng { ... } bên dưới, dán vào mảng (nhớ dấu phẩy giữa các phần tử).
 //   2. "topic" phải là một trong: macro, monetary, stocks, corporate, news, fx.
@@ -8,7 +8,7 @@
 //   5. "options" gồm đúng 4 lựa chọn; "answer" là chỉ số 0-3 của đáp án đúng.
 //   6. "explain" viết tiếng Việt có dấu: vì sao đáp án đúng và vì sao bẫy chính sai.
 // ============================================================
-window.FF_QUIZ = [
+window.WS_QUIZ = [
   // ---------------------------- MACRO ----------------------------
   { topic: "macro", type: "Vocabulary", q: "When high inflation is combined with stagnant growth and rising unemployment, economists call it _____.", options: ["disinflation", "stagflation", "deflation", "reflation"], answer: 1, explain: "'Stagflation' = stagnation + inflation: lạm phát cao đi kèm tăng trưởng trì trệ. Bẫy 'disinflation' chỉ là lạm phát giảm tốc, không liên quan đến tăng trưởng yếu." },
   { topic: "macro", type: "TOEIC Part 5", q: "Consumer spending has remained resilient _____ higher borrowing costs and weaker confidence.", options: ["although", "because of", "despite", "even though"], answer: 2, explain: "Sau chỗ trống là cụm danh từ ('higher borrowing costs...') nên cần giới từ 'despite'. 'Although'/'even though' là liên từ, phải theo sau bởi mệnh đề; 'because of' sai nghĩa." },

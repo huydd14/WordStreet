@@ -1,5 +1,5 @@
 /* ============================================================
-   FinFluent — code ứng dụng
+   WordStreet — code ứng dụng
    Bạn KHÔNG cần sửa file này. Nội dung nằm trong thư mục data/.
    ============================================================ */
 (function () {
@@ -9,14 +9,43 @@
   // 0. Dữ liệu đầu vào
   // ---------------------------------------------------------
   const CFG = Object.assign(
-    { appName: "FinFluent", tagline: "English for Finance", goals: { articles: 1, newWords: 5, reviews: 20, quiz: 10 }, accent: "en-US", backupReminderDays: 7 },
-    window.FF_CONFIG || {}
+    { appName: "WordStreet", tagline: "English for Finance", goals: { articles: 1, newWords: 5, reviews: 20, quiz: 10 }, accent: "en-US", backupReminderDays: 7 },
+    window.WS_CONFIG || {}
   );
-  const TOPICS = window.FF_TOPICS || [];
-  const TERMS = window.FF_TERMS || [];
-  const ARTICLES = window.FF_ARTICLES || [];
-  const QUIZ = window.FF_QUIZ || [];
+  const TOPICS = window.WS_TOPICS || [];
+  const TERMS = window.WS_TERMS || [];
+  const ARTICLES = window.WS_ARTICLES || [];                 // bài báo tài chính (nâng cao)
+  const QUIZ = window.WS_QUIZ || [];                         // đề tài chính (nâng cao)
+  // Bài đọc & đề TOEIC cơ bản, xếp theo thứ tự dễ → khó
+  const TOEIC_ARTICLES = (window.WS_TOEIC_ARTICLES || []).slice().sort((a, b) => (a.step || 0) - (b.step || 0));
+  const TOEIC_QUIZ = window.WS_TOEIC_QUIZ || [];
+  const BUILTIN_ARTICLES = TOEIC_ARTICLES.concat(ARTICLES);
+  const STAGES = [
+    { id: 1, name: "Bậc 1 · B1", desc: "Bài ngắn ~100 từ: thông báo, quảng cáo, email, tin nhắn" },
+    { id: 2, name: "Bậc 2 · B1+", desc: "~170 từ: memo, thư, tin tuyển dụng, trang web" },
+    { id: 3, name: "Bậc 3 · B2", desc: "~250 từ: bài báo, thư chính thức, thông cáo báo chí" }
+  ];
 
+  // Bộ 600 từ TOEIC: điền sẵn các trường còn thiếu để dùng chung code với thuật ngữ
+  const TOEIC_TOPICS = window.WS_TOEIC_TOPICS || [];
+  const TOEIC = (window.WS_TOEIC || []).map((t) => Object.assign({ level: "B1", en: "", collocations: "", synonyms: "", note: "" }, t));
+  // Bộ từ vựng mở rộng (Part 5&6 + 600 từ theo chủ đề bạn sưu tầm)
+  const EXTRA_TOPICS = window.WS_TOEIC_EXTRA_TOPICS || [];
+  const EXTRA = (window.WS_TOEIC_EXTRA || []).map((t) => Object.assign({ level: "B1", en: "", collocations: "", synonyms: "", note: "" }, t));
+  const ALL_TOPICS = TOPICS.concat(TOEIC_TOPICS, EXTRA_TOPICS);
+  const ALL_TERMS = TERMS.concat(TOEIC, EXTRA);
+
+  // Các "bộ từ" trong mục Từ vựng (thứ tự = thứ tự nên học)
+  const DECKS = {
+    toeic: { id: "toeic", label: "600 từ TOEIC",        terms: TOEIC, topics: TOEIC_TOPICS, levels: ["B1", "B2"],
+             desc: "từ vựng cốt lõi hay gặp trong đề TOEIC (văn phòng, nhân sự, du lịch, mua hàng…). Nên học hết B1 trước rồi lên B2." },
+    extra: { id: "extra", label: "TOEIC mở rộng",       terms: EXTRA, topics: EXTRA_TOPICS, levels: ["B1", "B2", "C1"],
+             desc: "từ bổ sung: cụm từ Part 5&6 thiết yếu và bộ từ theo chủ đề bạn sưu tầm (đã bỏ từ trùng, nghĩa được viết lại cho đúng ngữ cảnh TOEIC)." },
+    fin:   { id: "fin",   label: "Thuật ngữ tài chính", terms: TERMS, topics: TOPICS, levels: ["B2", "C1", "TOEIC"],
+             desc: "thuật ngữ chọn lọc cho báo chí tài chính, TOEIC 800+ và C1." }
+  };
+
+  // LƯU Ý: giữ nguyên tên khóa lưu trữ cũ ("finfluent_...") để KHÔNG mất kho từ đã học sau khi đổi tên web.
   const STORE_KEY = "finfluent_v1";
   const CACHE_KEY = "finfluent_dict_cache_v1";
   const DAY = 86400000;
@@ -32,7 +61,7 @@
   const dateStr = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   const todayStr = () => dateStr(new Date());
   const shuffle = (arr) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-  const topicOf = (id) => TOPICS.find((t) => t.id === id) || { id: id || "other", name: "Khác", en: "Other", color: "#8a8f96" };
+  const topicOf = (id) => ALL_TOPICS.find((t) => t.id === id) || { id: id || "other", name: "Khác", en: "Other", color: "#8a8f96" };
   const uid = () => "w" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const wordCount = (a) => a.paragraphs.join(" ").split(/\s+/).filter(Boolean).length;
 
@@ -49,13 +78,15 @@
     check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>',
     back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>',
     trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
+    listen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/></svg>',
     edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>'
   };
 
   const NAV = [
     { id: "today", label: "Hôm nay", icon: ICONS.today },
-    { id: "read", label: "Đọc báo", icon: ICONS.read },
-    { id: "glossary", label: "Thuật ngữ", icon: ICONS.glossary },
+    { id: "read", label: "Đọc hiểu", icon: ICONS.read },
+    { id: "listen", label: "Luyện nghe", icon: ICONS.listen },
+    { id: "glossary", label: "Từ vựng", icon: ICONS.glossary },
     { id: "words", label: "Từ của tôi", icon: ICONS.words },
     { id: "review", label: "Ôn tập", icon: ICONS.review },
     { id: "quiz", label: "Luyện đề", icon: ICONS.quiz }
@@ -64,7 +95,7 @@
   // ---------------------------------------------------------
   // 2. Lưu trữ (localStorage)
   // ---------------------------------------------------------
-  function freshDaily() { return { date: todayStr(), articles: 0, newWords: 0, reviews: 0, quiz: 0, quizCorrect: 0 }; }
+  function freshDaily() { return { date: todayStr(), articles: 0, newWords: 0, reviews: 0, quiz: 0, quizCorrect: 0, listen: 0 }; }
   function defaultState() {
     return {
       version: 1,
@@ -104,7 +135,8 @@
     S.streak.count = S.streak.last === y ? S.streak.count + 1 : 1;
     S.streak.last = t;
   }
-  function bump(key, n) { ensureDay(); S.daily[key] += n == null ? 1 : n; touchStreak(); save(); }
+  // (S.daily[key] || 0): dữ liệu cũ có thể chưa có mục mới (vd "listen") → coi như 0
+  function bump(key, n) { ensureDay(); S.daily[key] = (S.daily[key] || 0) + (n == null ? 1 : n); touchStreak(); save(); }
   function currentStreak() {
     const t = todayStr(), y = dateStr(new Date(Date.now() - DAY));
     return S.streak.last === t || S.streak.last === y ? S.streak.count : 0;
@@ -124,7 +156,8 @@
   // 3. Từ điển & từ đã lưu
   // ---------------------------------------------------------
   const termMap = new Map();
-  TERMS.forEach((t) => termMap.set(t.term.toLowerCase(), t));
+  // Thuật ngữ tài chính được ưu tiên nếu trùng từ với bộ TOEIC
+  ALL_TERMS.forEach((t) => { const k = t.term.toLowerCase(); if (!termMap.has(k)) termMap.set(k, t); });
 
   function stemCandidates(w) {
     const c = [];
@@ -178,20 +211,38 @@
   const dueWords = () => S.words.filter((w) => w.srs.due <= Date.now());
 
   // Lịch ôn ngắt quãng (SRS)
+  // r = mức nhớ: 1 Chưa nhớ · 2 Nhớ mang máng · 3 Nhớ được · 4 Quá dễ
+  // Càng nhớ chắc thì lần ôn sau càng xa. Luôn đảm bảo: mang máng < nhớ được < quá dễ (không bị trùng số ngày).
   function schedule(srs, r) {
-    let reps = srs.reps || 0, interval = srs.interval || 0, ease = srs.ease || 2.5;
+    const reps = srs.reps || 0, interval = srs.interval || 0;
+    let ease = srs.ease || 2.5;
     const now = Date.now();
     if (r === 1) return { reps: 0, interval: 0, ease: Math.max(1.3, ease - 0.2), due: now + 10 * 60000 };
-    if (r === 2) { interval = Math.max(1, Math.round(interval * 1.2)); ease = Math.max(1.3, ease - 0.15); }
-    else if (r === 3) { interval = reps === 0 ? 1 : reps === 1 ? 3 : Math.max(interval + 1, Math.round(interval * ease)); }
-    else { interval = reps === 0 ? 4 : Math.max(interval + 2, Math.round(interval * ease * 1.3)); ease += 0.15; }
-    return { reps: reps + 1, interval, ease, due: now + interval * DAY };
+    const base = Math.max(1, interval);
+    const hard = reps === 0 ? 1 : Math.max(1, Math.round(interval * 1.2));
+    const good = reps === 0 ? 2 : Math.max(hard + 1, Math.round(base * ease));
+    const easy = reps === 0 ? 4 : Math.max(good + 1, Math.round(base * ease * 1.3));
+    const next = r === 2 ? hard : r === 3 ? good : easy;
+    if (r === 2) ease = Math.max(1.3, ease - 0.15);
+    if (r === 4) ease += 0.15;
+    return { reps: reps + 1, interval: next, ease, due: now + next * DAY };
   }
   function intervalLabel(srs, r) {
     const n = schedule(srs, r);
-    if (r === 1) return "10 phút";
-    if (n.interval >= 30) return Math.round(n.interval / 30) + " tháng";
-    return n.interval + " ngày";
+    if (r === 1) return "gặp lại sau 10 phút";
+    if (n.interval >= 30) return Math.round(n.interval / 30) + " tháng nữa";
+    return n.interval + " ngày nữa";
+  }
+  // Mức nhớ 0–5 theo khoảng cách ôn (để vẽ các chấm ●●●○○)
+  function memoryLevel(srs) {
+    const i = srs.interval || 0;
+    if (!srs.reps) return 0;
+    return i >= MASTERED_DAYS ? 5 : i >= 10 ? 4 : i >= 4 ? 3 : i >= 2 ? 2 : 1;
+  }
+  function memoryDots(srs) {
+    const lv = memoryLevel(srs);
+    const names = ["Mới", "Mới học", "Đang nhớ", "Nhớ khá", "Nhớ chắc", "Đã thuộc"];
+    return `<span class="mem" title="Mức nhớ: ${names[lv]}">${[1, 2, 3, 4, 5].map((i) => `<i class="${i <= lv ? "on" : ""}"></i>`).join("")}<small>${names[lv]}</small></span>`;
   }
 
   // ---------------------------------------------------------
@@ -213,6 +264,21 @@
     const v = speechSynthesis.getVoices().find((x) => x.lang === S.accent);
     if (v) u.voice = v;
     speechSynthesis.speak(u);
+  }
+
+  // Đọc 1 câu với tốc độ tùy chọn (dùng cho Luyện nghe). rate: 0.6 (chậm) → 1.0 (bình thường)
+  function speakText(text, rate, onEnd) {
+    if (!("speechSynthesis" in window)) { toast("Trình duyệt không hỗ trợ đọc phát âm. Hãy dùng Chrome hoặc Edge."); return false; }
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = S.accent;
+    u.rate = rate || 0.9;
+    const voices = speechSynthesis.getVoices();
+    const v = voices.find((x) => x.lang === S.accent) || voices.find((x) => /^en[-_]/i.test(x.lang));
+    if (v) u.voice = v;
+    if (onEnd) u.onend = onEnd;
+    speechSynthesis.speak(u);
+    return true;
   }
 
   async function dictLookup(word) {
@@ -244,6 +310,38 @@
     } catch (err) {
       return undefined; // mất mạng
     }
+  }
+
+  // Dịch Anh → Việt tự động (miễn phí, không cần tài khoản).
+  // Thử Google Dịch trước, lỗi thì dùng MyMemory. Kết quả được nhớ lại để lần sau khỏi gọi mạng.
+  const VI_CACHE_KEY = "wordstreet_vi_cache_v1";
+  async function translateVi(text) {
+    const q = String(text || "").trim();
+    if (!q) return null;
+    let cache = {};
+    try { cache = JSON.parse(localStorage.getItem(VI_CACHE_KEY)) || {}; } catch (e) { /* bỏ qua */ }
+    if (cache[q]) return cache[q];
+    let vi = null;
+    try {
+      const r = await fetch("https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&q=" + encodeURIComponent(q));
+      if (r.ok) { const d = await r.json(); vi = (d[0] || []).map((s) => s[0]).join("").trim() || null; }
+    } catch (e) { /* thử nguồn dự phòng */ }
+    if (!vi) {
+      try {
+        const r = await fetch("https://api.mymemory.translated.net/get?langpair=en|vi&q=" + encodeURIComponent(q));
+        if (r.ok) { const d = await r.json(); const t = d && d.responseData && d.responseData.translatedText; if (t && !/MYMEMORY WARNING/i.test(t)) vi = t.trim(); }
+      } catch (e) { /* mất mạng */ }
+    }
+    if (!vi) return null;
+    // Từ đơn viết thường → bỏ viết hoa chữ đầu mà máy dịch hay tự thêm
+    if (!/[.!?]/.test(q) && q === q.toLowerCase()) vi = vi.charAt(0).toLowerCase() + vi.slice(1);
+    try {
+      cache[q] = vi;
+      const keys = Object.keys(cache);
+      if (keys.length > 500) keys.slice(0, keys.length - 500).forEach((k) => delete cache[k]);
+      localStorage.setItem(VI_CACHE_KEY, JSON.stringify(cache));
+    } catch (e) { /* bỏ qua */ }
+    return vi;
   }
 
   // ---------------------------------------------------------
@@ -291,15 +389,20 @@
     const hash = (location.hash || "#today").slice(1);
     const [page, arg] = hash.split("/");
     const view = $("#view");
-    $$("#nav a").forEach((a) => a.classList.toggle("active", a.dataset.nav === page));
+    const navPage = page === "learn" ? "glossary" : page; // trang Học từ thuộc mục Từ vựng
+    $$("#nav a").forEach((a) => a.classList.toggle("active", a.dataset.nav === navPage));
     view.classList.remove("fade-in"); void view.offsetWidth; view.classList.add("fade-in");
     switch (page) {
       case "read": arg ? renderArticle(decodeURIComponent(arg)) : renderArticleList(); break;
-      case "glossary": renderGlossary(); break;
+      case "glossary":
+        if (arg && DECKS[arg] && arg !== glossDeck) { glossDeck = arg; glossTopic = "all"; glossLevel = "all"; }
+        renderGlossary(); break;
       case "words": renderWords(); break;
       case "review": renderReview(); break;
       case "quiz": renderQuiz(); break;
-      default: renderToday();
+      default:
+        // Trang do file khác đăng ký (vd js/listen.js) qua WS.registerPage
+        if (PAGES[page]) PAGES[page](arg); else renderToday();
     }
     renderBanner();
     window.scrollTo(0, 0);
@@ -313,19 +416,21 @@
     const due = dueWords().length;
     const reviewTarget = Math.min(g.reviews, d.reviews + due) || g.reviews;
     const mastered = S.words.filter((w) => w.srs.interval >= MASTERED_DAYS).length;
-    const allArticles = ARTICLES.length;
-    const readCount = ARTICLES.filter((a) => S.articlesDone[a.id]).length;
+    const allArticles = BUILTIN_ARTICLES.length;
+    const readCount = BUILTIN_ARTICLES.filter((a) => S.articlesDone[a.id]).length;
     const qs = Object.values(S.quizStats).reduce((acc, x) => ({ c: acc.c + x.c, t: acc.t + x.t }), { c: 0, t: 0 });
     const acc = qs.t ? Math.round((qs.c / qs.t) * 100) + "%" : "—";
     const h = new Date().getHours();
     const hello = h < 11 ? "Chào buổi sáng" : h < 14 ? "Chào buổi trưa" : h < 18 ? "Chào buổi chiều" : "Chào buổi tối";
-    const nextArticle = ARTICLES.find((a) => !S.articlesDone[a.id]) || ARTICLES[0];
+    // Gợi ý: đọc hết bài TOEIC theo thứ tự trước, rồi mới tới bài báo tài chính
+    const nextArticle = BUILTIN_ARTICLES.find((a) => !S.articlesDone[a.id]) || BUILTIN_ARTICLES[0];
 
     const goals = [
       { icon: ICONS.read, title: "Đọc 1 bài báo", cur: d.articles, max: g.articles, href: nextArticle ? "#read/" + nextArticle.id : "#read", cta: "Đọc ngay", sub: nextArticle ? nextArticle.title : "" },
-      { icon: ICONS.words, title: "Lưu từ mới", cur: d.newWords, max: g.newWords, href: "#glossary", cta: "Mở thuật ngữ", sub: "Từ bài báo, thuật ngữ, hoặc clip TikTok" },
+      { icon: ICONS.words, title: "Học từ mới", cur: d.newWords, max: g.newWords, href: "#learn/next.next.go", cta: "Học bài tiếp", sub: "Học 1 bài 10 từ: xem → trắc nghiệm → gõ lại" },
       { icon: ICONS.review, title: "Ôn thẻ đến hạn", cur: d.reviews, max: reviewTarget, href: "#review", cta: due ? `Ôn ${due} thẻ` : "Ôn tập", sub: due ? `Còn ${due} thẻ đang chờ` : "Không còn thẻ đến hạn" },
-      { icon: ICONS.quiz, title: "Luyện đề", cur: d.quiz, max: g.quiz, href: "#quiz", cta: "Làm đề", sub: d.quiz ? `Đúng ${d.quizCorrect}/${d.quiz} câu hôm nay` : "TOEIC Part 5 & C1 usage" }
+      { icon: ICONS.quiz, title: "Luyện đề", cur: d.quiz, max: g.quiz, href: "#quiz", cta: "Làm đề", sub: d.quiz ? `Đúng ${d.quizCorrect}/${d.quiz} câu hôm nay` : "TOEIC Part 5 & C1 usage" },
+      { icon: ICONS.listen, title: "Luyện nghe", cur: d.listen || 0, max: g.listen || 10, href: "#listen", cta: "Nghe chép", sub: "Nghe câu tiếng Anh rồi gõ lại, luyện tai cho Listening" }
     ];
 
     const topicRows = TOPICS.map((t) => {
@@ -337,7 +442,13 @@
         <div class="row between small"><span class="row" style="gap:8px"><span class="dot" style="background:${t.color}"></span><b>${esc(t.name)}</b></span>
         <span class="muted xs">${saved}/${total} từ${st ? ` · đề ${Math.round((st.c / st.t) * 100)}%` : ""}</span></div>
         <div class="bar"><span style="width:${pct}%;background:${t.color}"></span></div></div>`;
-    }).join("");
+    }).join("") + (TOEIC.length ? (() => {
+      const savedT = TOEIC.filter((t) => findWord(t.term)).length;
+      const pctT = Math.round((savedT / TOEIC.length) * 100);
+      return `<a class="stack toeic-row" href="#glossary/toeic" style="gap:6px;text-decoration:none;color:inherit">
+        <div class="row between small"><b>600 từ vựng TOEIC</b><span class="muted xs">${savedT}/${TOEIC.length} từ</span></div>
+        <div class="bar"><span style="width:${pctT}%"></span></div></a>`;
+    })() : "");
 
     $("#view").innerHTML = `
       <section class="hero">
@@ -353,7 +464,7 @@
       </section>
 
       <h2 class="section-title">Kế hoạch hôm nay</h2>
-      <div class="grid grid-4">
+      <div class="grid goals-grid">
         ${goals.map((x) => {
           const done = x.cur >= x.max && x.max > 0;
           const pct = x.max ? Math.min(100, Math.round((x.cur / x.max) * 100)) : 0;
@@ -375,7 +486,7 @@
         <div class="card roadmap">
           <h3 style="font-size:16px;margin-bottom:14px">Lộ trình 12 tuần gợi ý</h3>
           <ol>
-            <li><div><b>Tuần 1–4 · Nền thuật ngữ</b><span class="muted small">Mỗi ngày lưu 5 từ trong mục Thuật ngữ, ôn hết thẻ đến hạn. Bắt đầu với Vĩ mô và Tiền tệ.</span></div></li>
+            <li><div><b>Tuần 1–4 · Nền từ vựng</b><span class="muted small">Mỗi ngày học 1 bài 10 từ trong <a href="#learn/toeic">lộ trình 600 từ TOEIC</a> (B1 trước), ôn hết thẻ đến hạn. Sau đó chuyển sang thuật ngữ Vĩ mô và Tiền tệ.</span></div></li>
             <li><div><b>Tuần 5–8 · Đọc báo & paraphrase</b><span class="muted small">Mỗi ngày 1 bài báo, làm 3 câu đọc hiểu. Để ý cách bài báo diễn đạt lại một ý bằng từ khác (paraphrase) — kỹ năng cốt lõi của TOEIC Part 7 và C1.</span></div></li>
             <li><div><b>Tuần 9–12 · Luyện đề & tăng tốc</b><span class="muted small">Mỗi ngày 10–20 câu luyện đề, dán thêm bài báo thật (Reuters, Bloomberg) để đọc nhanh hơn.</span></div></li>
           </ol>
@@ -386,26 +497,80 @@
   // ---------------------------------------------------------
   // 8. Đọc báo
   // ---------------------------------------------------------
-  let readTopic = "all";
-  const allArticles = () => ARTICLES.concat(S.customArticles || []);
+  let readTopic = "all", readDeck = "toeic", readStage = "all";
+  const allArticles = () => BUILTIN_ARTICLES.concat(S.customArticles || []);
+  const finArticles = () => ARTICLES.concat(S.customArticles || []);
 
-  function topicChips(current, onPick, counts) {
+  function topicChips(current, onPick, counts, topics) {
     const html = `<div class="chips">
       <button class="chip ${current === "all" ? "on" : ""}" data-topic="all">Tất cả${counts ? ` · ${counts.all}` : ""}</button>
-      ${TOPICS.map((t) => `<button class="chip ${current === t.id ? "on" : ""}" data-topic="${t.id}"><span class="dot" style="background:${t.color}"></span>${esc(t.name)}${counts ? ` · ${counts[t.id] || 0}` : ""}</button>`).join("")}
+      ${(topics || TOPICS).map((t) => `<button class="chip ${current === t.id ? "on" : ""}" data-topic="${t.id}"><span class="dot" style="background:${t.color}"></span>${esc(t.name)}${counts ? ` · ${counts[t.id] || 0}` : ""}</button>`).join("")}
     </div>`;
     setTimeout(() => $$("[data-topic]").forEach((b) => (b.onclick = () => onPick(b.dataset.topic))), 0);
     return html;
   }
 
+  function articleCard(a, isNext) {
+    const t = topicOf(a.topic), done = S.articlesDone[a.id];
+    const stage = a.stage ? STAGES.find((s) => s.id === a.stage) : null;
+    return `<a class="card card-click article-card ${isNext ? "is-next" : ""}" href="#read/${encodeURIComponent(a.id)}" style="text-decoration:none;color:inherit">
+      <div class="meta">
+        ${isNext ? `<span class="tag blue">→ Nên đọc tiếp</span>` : ""}
+        ${a.step ? `<span class="tag">Bài ${a.step}</span>` : ""}
+        <span class="tag"><span class="dot" style="background:${t.color}"></span>${esc(t.name)}</span>
+        ${a.level ? `<span class="tag">${esc(a.level)}</span>` : ""}
+        ${a.custom ? '<span class="tag blue">Bài của bạn</span>' : ""}
+        ${done ? `<span class="tag green">✓ ${done.score}/${done.total}</span>` : ""}</div>
+      <h3>${esc(a.title)}</h3>
+      <p>${esc(a.summary || a.style || "")}</p>
+      <p class="xs" style="margin-top:auto;padding-top:10px">${esc(a.style || "")}${a.style ? " · " : ""}${wordCount(a)} từ · ~${Math.max(1, Math.round(wordCount(a) / 150))} phút${stage ? " · " + esc(stage.name) : ""}</p>
+    </a>`;
+  }
+
   function renderArticleList() {
-    const list = allArticles().filter((a) => readTopic === "all" || a.topic === readTopic);
-    const counts = { all: allArticles().length };
-    allArticles().forEach((a) => (counts[a.topic] = (counts[a.topic] || 0) + 1));
+    const isToeic = readDeck === "toeic";
+    let listHtml, filterHtml;
+    if (isToeic) {
+      const nextId = (TOEIC_ARTICLES.find((a) => !S.articlesDone[a.id]) || {}).id;
+      const doneCount = TOEIC_ARTICLES.filter((a) => S.articlesDone[a.id]).length;
+      const scounts = { all: TOEIC_ARTICLES.length };
+      TOEIC_ARTICLES.forEach((a) => (scounts[a.stage] = (scounts[a.stage] || 0) + 1));
+      filterHtml = `
+        <div class="card flat deck-progress">
+          <div class="row between small"><b>Đã đọc ${doneCount}/${TOEIC_ARTICLES.length} bài TOEIC</b><span class="muted xs">Đọc theo thứ tự Bài 1 → ${TOEIC_ARTICLES.length}, độ khó tăng dần</span></div>
+          <div class="bar"><span style="width:${TOEIC_ARTICLES.length ? (doneCount / TOEIC_ARTICLES.length) * 100 : 0}%"></span></div>
+        </div>
+        <div class="chips" id="stage-chips">
+          <button class="chip ${readStage === "all" ? "on" : ""}" data-stage="all">Tất cả · ${scounts.all}</button>
+          ${STAGES.map((s) => `<button class="chip ${String(readStage) === String(s.id) ? "on" : ""}" data-stage="${s.id}" title="${esc(s.desc)}">${esc(s.name)} · ${scounts[s.id] || 0}</button>`).join("")}
+        </div>`;
+      const stages = readStage === "all" ? STAGES : STAGES.filter((s) => String(s.id) === String(readStage));
+      listHtml = stages.map((s) => {
+        const items = TOEIC_ARTICLES.filter((a) => a.stage === s.id);
+        if (!items.length) return "";
+        return `<h2 class="section-title">${esc(s.name)} <span class="stage-desc">— ${esc(s.desc)}</span></h2>
+          <div class="grid grid-3">${items.map((a) => articleCard(a, a.id === nextId)).join("")}</div>`;
+      }).join("");
+    } else {
+      const fin = finArticles();
+      const list = fin.filter((a) => readTopic === "all" || a.topic === readTopic);
+      const counts = { all: fin.length };
+      fin.forEach((a) => (counts[a.topic] = (counts[a.topic] || 0) + 1));
+      filterHtml = topicChips(readTopic, (t) => { readTopic = t; renderArticleList(); }, counts);
+      listHtml = `<div class="grid grid-3">${list.map((a) => articleCard(a, false)).join("") || `<div class="empty card" style="grid-column:1/-1"><h3>Chưa có bài trong chủ đề này</h3><p>Bấm "Dán bài của bạn" để thêm.</p></div>`}</div>`;
+    }
     $("#view").innerHTML = `
       <div class="page-head">
-        <div><h1>Đọc báo tài chính</h1><p>Bấm vào bất kỳ từ nào trong bài để tra nghĩa và lưu kèm câu gốc. Mỗi bài có 3 câu hỏi đọc hiểu kiểu TOEIC Part 7.</p></div>
-        <button class="btn" id="btn-paste">${ICONS.plus} Dán bài của bạn</button>
+        <div><h1>Đọc hiểu</h1><p>${isToeic
+          ? "Bài đọc kiểu TOEIC Part 7, đi từ ngắn và dễ đến dài hơn. Đọc xong bậc 3 là sẵn sàng cho bài báo tài chính."
+          : "Bài báo tài chính trình độ C1. Bấm vào bất kỳ từ nào để tra nghĩa và lưu kèm câu gốc."} Mỗi bài có 3 câu hỏi đọc hiểu.</p></div>
+        <div class="row wrap" style="gap:8px">
+          <div class="seg" id="read-deck">
+            <button data-deck="toeic" class="${isToeic ? "on" : ""}">TOEIC · dễ → khó · ${TOEIC_ARTICLES.length}</button>
+            <button data-deck="fin" class="${!isToeic ? "on" : ""}">Báo tài chính · ${finArticles().length}</button>
+          </div>
+          <button class="btn" id="btn-paste">${ICONS.plus} Dán bài của bạn</button>
+        </div>
       </div>
       <div id="paste-box" class="card hidden" style="margin-bottom:18px">
         <div class="stack">
@@ -419,22 +584,14 @@
           <div class="row"><span class="spacer"></span><button class="btn btn-ghost" id="paste-cancel">Hủy</button><button class="btn btn-primary" id="paste-save">Mở bài</button></div>
         </div>
       </div>
-      ${topicChips(readTopic, (t) => { readTopic = t; renderArticleList(); }, counts)}
-      <div class="grid grid-3">
-        ${list.map((a) => {
-          const t = topicOf(a.topic), done = S.articlesDone[a.id];
-          return `<a class="card card-click article-card" href="#read/${encodeURIComponent(a.id)}" style="text-decoration:none;color:inherit">
-            <div class="meta"><span class="tag"><span class="dot" style="background:${t.color}"></span>${esc(t.name)}</span>
-              ${a.level ? `<span class="tag">${esc(a.level)}</span>` : ""}
-              ${a.custom ? '<span class="tag gold">Bài của bạn</span>' : ""}
-              ${done ? `<span class="tag green">✓ ${done.score}/${done.total}</span>` : ""}</div>
-            <h3>${esc(a.title)}</h3>
-            <p>${esc(a.summary || a.style || "")}</p>
-            <p class="xs" style="margin-top:10px">${esc(a.style || "")}${a.style ? " · " : ""}${wordCount(a)} từ · ~${Math.max(1, Math.round(wordCount(a) / 180))} phút</p>
-          </a>`;
-        }).join("") || `<div class="empty card" style="grid-column:1/-1"><h3>Chưa có bài trong chủ đề này</h3><p>Bấm "Dán bài của bạn" để thêm.</p></div>`}
-      </div>`;
+      ${filterHtml}
+      ${listHtml}`;
 
+    $$("#read-deck [data-deck]").forEach((b) => (b.onclick = () => {
+      if (readDeck === b.dataset.deck) return;
+      readDeck = b.dataset.deck; readTopic = "all"; readStage = "all"; renderArticleList();
+    }));
+    $$("#stage-chips [data-stage]").forEach((b) => (b.onclick = () => { readStage = b.dataset.stage; renderArticleList(); }));
     $("#btn-paste").onclick = () => $("#paste-box").classList.toggle("hidden");
     $("#paste-cancel").onclick = () => $("#paste-box").classList.add("hidden");
     $("#paste-save").onclick = () => {
@@ -447,6 +604,7 @@
         summary: "", paragraphs: text.split(/\n\s*\n|\n/).map((s) => s.trim()).filter(Boolean), questions: []
       };
       S.customArticles.unshift(a); save();
+      readDeck = "fin"; // bài tự dán nằm trong mục "Báo tài chính"
       location.hash = "#read/" + a.id;
     };
   }
@@ -455,7 +613,7 @@
   let readerSentences = [];
   function buildPhraseMatcher() {
     const phrases = new Set();
-    TERMS.forEach((t) => { if (/\s/.test(t.term)) phrases.add(t.term.toLowerCase()); });
+    ALL_TERMS.forEach((t) => { if (/\s/.test(t.term)) phrases.add(t.term.toLowerCase()); });
     S.words.forEach((w) => { if (/\s/.test(w.term)) phrases.add(w.term.toLowerCase()); });
     const list = Array.from(phrases).sort((a, b) => b.length - a.length).map((p) => {
       const ws = p.split(/\s+/).map(reEsc);
@@ -506,13 +664,15 @@
     const t = topicOf(a.topic);
     const pm = buildPhraseMatcher();
     readerSentences = [];
-    const body = a.paragraphs.map((p) => "<p>" + splitSentences(p).map((s) => { readerSentences.push(s); return renderSentence(s, readerSentences.length - 1, pm); }).join(" ") + "</p>").join("");
+    // Mỗi đoạn có 1 ô bản dịch tiếng Việt ẩn bên dưới (bấm "Hiện bản dịch" mới dịch)
+    const body = a.paragraphs.map((p, pi) => "<p>" + splitSentences(p).map((s) => { readerSentences.push(s); return renderSentence(s, readerSentences.length - 1, pm); }).join(" ") + `</p><div class="para-vi hidden" data-pi="${pi}"></div>`).join("");
     const savedHere = new Set($$(".tok.saved", (() => { const d = document.createElement("div"); d.innerHTML = body; return d; })()).map((e) => e.dataset.k)).size;
     const done = S.articlesDone[a.id];
 
     $("#view").innerHTML = `
       <div class="row" style="margin-bottom:14px;max-width:760px;margin-inline:auto">
         <a class="btn btn-ghost btn-sm" href="#read">${ICONS.back} Danh sách bài</a><span class="spacer"></span>
+        <button class="btn btn-sm" id="btn-trans" title="Mẹo: đọc và làm câu hỏi trước, rồi mới bật bản dịch để dò lại">Hiện bản dịch</button>
         <button class="btn btn-sm" id="btn-listen">${ICONS.speak} Nghe cả bài</button>
         ${a.custom ? `<button class="btn btn-sm btn-ghost btn-danger" id="btn-del-article">${ICONS.trash} Xóa bài</button>` : ""}
       </div>
@@ -530,16 +690,47 @@
           <span class="muted small" id="aq-score">${done ? `Lần trước: ${done.score}/${done.total}` : ""}</span></div>
           <div id="aq-list">${a.questions.map((q, i) => questionHtml(q, i, "aq")).join("")}</div>
         </div>
-      </section>` : ""}`;
+      </section>` : ""}
+      ${(() => {
+        const i = TOEIC_ARTICLES.findIndex((x) => x.id === a.id);
+        if (i < 0) return "";
+        const next = TOEIC_ARTICLES[i + 1];
+        return `<div class="row qblock" style="margin-top:16px">
+          <a class="btn btn-ghost btn-sm" href="#read">${ICONS.back} Danh sách bài</a><span class="spacer"></span>
+          ${next ? `<a class="btn btn-primary" href="#read/${encodeURIComponent(next.id)}">Bài tiếp theo: Bài ${next.step} →</a>`
+                 : `<a class="btn btn-primary" href="#read" id="btn-to-fin">Xong bài TOEIC cuối! Thử báo tài chính →</a>`}
+        </div>`;
+      })()}`;
 
     $("#reader-body").onclick = (e) => {
       const tok = e.target.closest(".tok");
       if (!tok) return;
       $$(".tok.sel").forEach((x) => x.classList.remove("sel"));
       tok.classList.add("sel");
-      openLookup(tok.dataset.k, { context: readerSentences[+tok.dataset.s] || "", source: a.custom ? "Bài tự dán" : "Bài báo FinFluent", topic: a.topic, onSaved: () => { tok.classList.remove("term"); tok.classList.add("saved"); } });
+      openLookup(tok.dataset.k, { context: readerSentences[+tok.dataset.s] || "", source: a.custom ? "Bài tự dán" : "Bài báo WordStreet", topic: a.topic, onSaved: () => { tok.classList.remove("term"); tok.classList.add("saved"); } });
     };
     $("#btn-listen").onclick = () => tts(a.paragraphs.join(" "));
+
+    // Bật/tắt bản dịch song ngữ. Dịch lần lượt từng đoạn (máy dịch), kết quả được nhớ lại.
+    let transOn = false, transLoaded = false;
+    $("#btn-trans").onclick = async () => {
+      transOn = !transOn;
+      $("#btn-trans").textContent = transOn ? "Ẩn bản dịch" : "Hiện bản dịch";
+      $("#btn-trans").classList.toggle("btn-primary", transOn);
+      $$(".para-vi").forEach((el) => el.classList.toggle("hidden", !transOn));
+      if (!transOn || transLoaded) return;
+      transLoaded = true;
+      const myView = a.id;
+      for (const el of $$(".para-vi")) {
+        el.innerHTML = `<span class="spin"></span> Đang dịch…`;
+      }
+      for (const el of $$(".para-vi")) {
+        const vi = await translateVi(a.paragraphs[+el.dataset.pi]);
+        if (!document.body.contains(el) || myView !== a.id) return; // đã chuyển trang
+        el.textContent = vi || "Không dịch được đoạn này (kiểm tra mạng).";
+      }
+    };
+    if ($("#btn-to-fin")) $("#btn-to-fin").onclick = () => { readDeck = "fin"; readTopic = "all"; };
     if (a.custom) $("#btn-del-article").onclick = () => {
       if (!confirm("Xóa bài này?")) return;
       S.customArticles = S.customArticles.filter((x) => x.id !== a.id); save(); location.hash = "#read";
@@ -611,7 +802,7 @@
           <div style="flex:1;min-width:0">
             <div class="row wrap" style="gap:6px;margin-bottom:6px">
               ${topic ? `<span class="tag"><span class="dot" style="background:${t.color}"></span>${esc(t.name)}</span>` : ""}
-              ${src.level ? `<span class="tag gold">${esc(src.level)}</span>` : ""}
+              ${src.level ? `<span class="tag blue">${esc(src.level)}</span>` : ""}
               ${saved ? `<span class="tag green">✓ Đã lưu</span>` : ""}
             </div>
             <h2>${esc(name)}</h2>
@@ -623,16 +814,18 @@
       </div>
       <div class="sheet-body">
         <div class="field"><label class="label" for="lk-vi">Nghĩa tiếng Việt</label>
-          <input class="input" id="lk-vi" value="${esc(src.vi || "")}" placeholder="Gõ nghĩa tiếng Việt bạn hiểu…" /></div>
+          <input class="input" id="lk-vi" value="${esc(src.vi || "")}" placeholder="Gõ nghĩa tiếng Việt bạn hiểu…" />
+          <div class="auto-note" id="lk-vi-note"></div></div>
         <div id="lk-en">${src.en ? `<div class="info-block"><div class="k">Định nghĩa (EN)</div>${esc(src.en)}</div>` : ""}</div>
         ${src.collocations ? `<div class="info-block"><div class="k">Collocations · cụm hay đi kèm</div>${esc(src.collocations)}</div>` : ""}
         ${src.synonyms ? `<div class="info-block"><div class="k">Paraphrase / đồng nghĩa</div>${esc(src.synonyms)}</div>` : ""}
         ${src.example && src.example !== context ? `<div class="info-block"><div class="k">Ví dụ</div><div class="ex">${highlight(src.example, name)}</div></div>` : ""}
         ${src.note ? `<div class="tip">${esc(src.note)}</div>` : ""}
         <div class="field"><label class="label" for="lk-ctx">Câu ngữ cảnh (giúp bạn nhớ lâu)</label>
-          <textarea class="textarea" id="lk-ctx" rows="3" placeholder="Câu bạn gặp từ này…">${esc(context)}</textarea></div>
-        <div class="links"><a target="_blank" rel="noopener" href="https://translate.google.com/?sl=en&tl=vi&text=${encodeURIComponent(context && context.length < 400 ? context : name)}">Google Dịch ↗</a>
-          <a target="_blank" rel="noopener" href="https://dictionary.cambridge.org/dictionary/english-vietnamese/${encodeURIComponent(name.replace(/\s+/g, "-"))}">Cambridge Anh–Việt ↗</a>
+          <textarea class="textarea" id="lk-ctx" rows="3" placeholder="Câu bạn gặp từ này…">${esc(context)}</textarea>
+          <div class="ctx-vi hidden" id="lk-ctx-vi"></div>
+          <div class="row" style="margin-top:6px"><button type="button" class="btn btn-ghost btn-sm" id="lk-ctx-tr">Dịch cả câu</button></div></div>
+        <div class="links"><a target="_blank" rel="noopener" href="https://dictionary.cambridge.org/dictionary/english-vietnamese/${encodeURIComponent(name.replace(/\s+/g, "-"))}">Cambridge Anh–Việt ↗</a>
           <a target="_blank" rel="noopener" href="https://www.investopedia.com/search?q=${encodeURIComponent(name)}">Investopedia ↗</a></div>
       </div>
       <div class="sheet-foot">
@@ -649,6 +842,33 @@
     $("#lk-close").onclick = closeSheet;
     $("#lk-speak").onclick = () => speak(name, audio);
 
+    // Tự dịch nghĩa tiếng Việt nếu chưa có (bạn vẫn sửa lại được trước khi lưu)
+    let userTypedVi = false;
+    $("#lk-vi").addEventListener("input", () => { userTypedVi = true; });
+    if (!src.vi) {
+      $("#lk-vi-note").innerHTML = `<span class="spin"></span> Đang dịch tự động…`;
+      translateVi(name).then((vi) => {
+        if (myToken !== sheetToken) return;
+        if (!vi) { $("#lk-vi-note").textContent = "Không dịch tự động được (kiểm tra mạng). Bạn gõ nghĩa giúp nhé."; return; }
+        if (!userTypedVi && !$("#lk-vi").value.trim()) $("#lk-vi").value = vi;
+        $("#lk-vi-note").textContent = "✨ Dịch tự động. Đọc câu ngữ cảnh rồi sửa lại cho sát nghĩa nếu cần.";
+      });
+    }
+    // Dịch cả câu ngữ cảnh để hiểu từ trong câu
+    const translateCtx = () => {
+      const s = $("#lk-ctx").value.trim();
+      const box = $("#lk-ctx-vi");
+      if (!s) { box.classList.add("hidden"); return; }
+      box.classList.remove("hidden");
+      box.innerHTML = `<span class="spin"></span> Đang dịch câu…`;
+      translateVi(s).then((vi) => {
+        if (myToken !== sheetToken) return;
+        box.innerHTML = vi ? `<span class="k">Nghĩa cả câu</span>${esc(vi)}` : `<span class="muted">Không dịch được câu này (kiểm tra mạng).</span>`;
+      });
+    };
+    $("#lk-ctx-tr").onclick = translateCtx;
+    if (context) translateCtx();
+
     // Tra online nếu chưa có định nghĩa
     if (!src.en && !/\s/.test(name)) {
       $("#lk-en").innerHTML = `<div class="loading"><span class="spin"></span> Đang tra từ điển online…</div>`;
@@ -659,7 +879,7 @@
         }
         if (myToken !== sheetToken) return;
         if (!res) {
-          $("#lk-en").innerHTML = `<p class="muted small">${res === null ? "Không tìm thấy trong từ điển online. Bạn có thể tra Google Dịch bên dưới rồi gõ nghĩa." : "Không kết nối được từ điển online (kiểm tra mạng). Bạn vẫn lưu được bình thường."}</p>`;
+          $("#lk-en").innerHTML = `<p class="muted small">${res === null ? "Không có định nghĩa tiếng Anh cho từ này trong từ điển online. Nghĩa tiếng Việt ở trên vẫn được dịch tự động." : "Không kết nối được từ điển online (kiểm tra mạng). Bạn vẫn lưu được bình thường."}</p>`;
           return;
         }
         audio = audio || res.audio;
@@ -709,23 +929,46 @@
   // ---------------------------------------------------------
   // 10. Thuật ngữ
   // ---------------------------------------------------------
-  let glossTopic = "all", glossQuery = "", glossLevel = "all";
+  let glossDeck = "toeic", glossTopic = "all", glossQuery = "", glossLevel = "all";
   function renderGlossary() {
+    const deck = DECKS[glossDeck];
+    const TERMS = deck.terms; // chỉ dùng bộ từ đang chọn trong trang này
     const counts = { all: TERMS.length };
     TERMS.forEach((t) => (counts[t.topic] = (counts[t.topic] || 0) + 1));
+    const learned = TERMS.filter((t) => findWord(t.term)).length;
+    const pctL = TERMS.length ? Math.round((learned / TERMS.length) * 100) : 0;
+    const lessonSize = (S.learn && S.learn.size) || 10;
     $("#view").innerHTML = `
-      <div class="page-head"><div><h1>Thuật ngữ tài chính</h1>
-        <p>${TERMS.length} thuật ngữ chọn lọc cho báo chí tài chính, TOEIC 800+ và C1. Bấm "+ Lưu" để đưa vào lịch ôn.</p></div></div>
-      ${topicChips(glossTopic, (t) => { glossTopic = t; renderGlossary(); }, counts)}
+      <div class="page-head"><div><h1>Từ vựng</h1>
+        <p>${TERMS.length} ${deck.desc}</p></div>
+        <div class="seg" id="g-deck">
+          ${Object.values(DECKS).map((d) => `<button data-deck="${d.id}" class="${glossDeck === d.id ? "on" : ""}">${d.label} · ${d.terms.length}</button>`).join("")}
+        </div></div>
+      <div class="card learn-cta">
+        <div class="learn-cta-main">
+          <div class="row between small"><b>Đã học ${learned}/${TERMS.length} từ · ${esc(deck.label)}</b><span class="muted xs">${pctL}%</span></div>
+          <div class="bar"><span style="width:${pctL}%"></span></div>
+          <p class="muted xs" style="margin-top:8px">${learned >= TERMS.length ? "Bạn đã học hết bộ này! Giờ chỉ cần ôn đều mỗi ngày." : `Học lần lượt từng bài ${lessonSize} từ: xem từ → trắc nghiệm → gõ lại. Học xong, từ tự vào lịch Ôn tập.`}</p>
+        </div>
+        <div class="row" style="gap:8px;flex-wrap:wrap">
+          <a class="btn" href="#learn/${deck.id}">Xem lộ trình</a>
+          ${learned < TERMS.length ? `<a class="btn btn-primary" href="#learn/${deck.id}.${glossTopic === "all" ? "next" : glossTopic}.go">Học ${lessonSize} từ tiếp theo</a>` : ""}
+        </div>
+      </div>
+      ${topicChips(glossTopic, (t) => { glossTopic = t; renderGlossary(); }, counts, deck.topics)}
       <div class="toolbar">
-        <input class="input" id="g-search" placeholder="Tìm thuật ngữ hoặc nghĩa tiếng Việt…" value="${esc(glossQuery)}" />
+        <input class="input" id="g-search" placeholder="Tìm từ hoặc nghĩa tiếng Việt…" value="${esc(glossQuery)}" />
         <select class="select" id="g-level">
           <option value="all">Mọi cấp độ</option>
-          ${["B2", "C1", "TOEIC"].map((l) => `<option value="${l}" ${glossLevel === l ? "selected" : ""}>${l}</option>`).join("")}
+          ${deck.levels.map((l) => `<option value="${l}" ${glossLevel === l ? "selected" : ""}>${l}</option>`).join("")}
         </select>
-        <button class="btn" id="g-add5">Lưu 5 từ ngẫu nhiên chưa học</button>
+        <button class="btn" id="g-add5" title="Đưa thẳng vào lịch ôn, không qua bước học">Lưu nhanh 5 từ ngẫu nhiên</button>
       </div>
       <div class="grid grid-3" id="g-list"></div>`;
+    $$("#g-deck [data-deck]").forEach((b) => (b.onclick = () => {
+      if (glossDeck === b.dataset.deck) return;
+      glossDeck = b.dataset.deck; glossTopic = "all"; glossLevel = "all"; renderGlossary();
+    }));
     const draw = () => {
       const q = glossQuery.toLowerCase();
       const list = TERMS.filter((t) => (glossTopic === "all" || t.topic === glossTopic) && (glossLevel === "all" || t.level === glossLevel) &&
@@ -737,13 +980,13 @@
             <h3>${esc(t.term)}</h3><div class="row" style="gap:8px"><span class="ipa">${esc(t.ipa)}</span><span class="muted xs">${esc(t.pos)}</span></div></div>
             <button class="icon-btn" data-say="${esc(t.term)}" title="Phát âm">${ICONS.speak}</button></div>
           <div class="vi">${esc(t.vi)}</div>
-          <div class="en">${esc(t.en)}</div>
+          ${t.en ? `<div class="en">${esc(t.en)}</div>` : ""}
           <div class="ex">${highlight(t.example, t.term)}</div>
           ${t.collocations ? `<div class="colloc"><b>Cụm hay gặp:</b> ${esc(t.collocations)}</div>` : ""}
           <div class="row" style="margin-top:auto;padding-top:4px">
-            <span class="tag"><span class="dot" style="background:${tp.color}"></span>${esc(tp.name)}</span><span class="tag gold">${esc(t.level)}</span>
+            <span class="tag"><span class="dot" style="background:${tp.color}"></span>${esc(tp.name)}</span><span class="tag blue">${esc(t.level)}</span>
             <span class="spacer"></span>
-            ${saved ? `<span class="tag green">✓ Đã lưu</span>` : `<button class="btn btn-sm btn-primary" data-save="${esc(t.term)}">${ICONS.plus} Lưu</button>`}
+            ${saved ? `<span class="tag green">✓ Đã học</span>` : `<button class="btn btn-sm" data-save="${esc(t.term)}" title="Đã biết từ này rồi? Lưu thẳng vào lịch ôn">${ICONS.plus} Lưu</button>`}
           </div></div>`;
       }).join("") || `<div class="empty card" style="grid-column:1/-1"><h3>Không có thuật ngữ phù hợp</h3><p>Thử từ khóa khác.</p></div>`;
     };
@@ -777,8 +1020,8 @@
         <div><h1>Từ của tôi</h1><p>Mọi từ bạn lưu từ bài báo, thuật ngữ, hay clip TikTok/Facebook đều ở đây và được nhắc ôn tự động.</p></div>
         <div class="row wrap">
           <button class="btn btn-primary" id="w-add-toggle">${ICONS.plus} Thêm từ nhanh</button>
-          <button class="btn" id="w-export">Tải backup</button>
-          <label class="btn" for="w-import" style="cursor:pointer">Nhập backup</label>
+          <button class="btn" id="w-export" title="Tải về 1 file .json chứa toàn bộ từ đã lưu + tiến độ học. Giữ file này để khôi phục khi đổi máy hoặc lỡ xóa dữ liệu trình duyệt.">Sao lưu ra file</button>
+          <label class="btn" for="w-import" style="cursor:pointer" title="Chọn file .json đã sao lưu trước đó để khôi phục từ vựng (không xóa từ đang có).">Khôi phục từ file</label>
           <input type="file" id="w-import" accept=".json,application/json" class="hidden" />
         </div>
       </div>
@@ -795,7 +1038,7 @@
           <div class="field"><label class="label" for="f-ctx">Câu bạn nghe/đọc được</label><textarea class="textarea" id="f-ctx" rows="2" placeholder="VD: The market has already priced in two rate cuts this year."></textarea></div>
           <div class="grid grid-2">
             <div class="field"><label class="label" for="f-src">Nguồn</label><select class="select" id="f-src">${SOURCES.map((s) => `<option>${s}</option>`).join("")}</select></div>
-            <div class="field"><label class="label" for="f-topic">Chủ đề</label><select class="select" id="f-topic">${TOPICS.map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select></div>
+            <div class="field"><label class="label" for="f-topic">Chủ đề</label><select class="select" id="f-topic">${ALL_TOPICS.map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select></div>
           </div>
           <p class="muted xs" id="f-info"></p>
           <div class="row"><span class="spacer"></span><button type="button" class="btn btn-ghost" id="f-cancel">Hủy</button><button class="btn btn-primary" type="submit">Lưu từ</button></div>
@@ -804,7 +1047,7 @@
 
       <div class="toolbar">
         <input class="input" id="w-search" placeholder="Tìm trong từ đã lưu…" value="${esc(wordsQuery)}" />
-        <select class="select" id="w-topic"><option value="all">Mọi chủ đề</option>${TOPICS.map((t) => `<option value="${t.id}" ${wordsTopic === t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select>
+        <select class="select" id="w-topic"><option value="all">Mọi chủ đề</option>${ALL_TOPICS.map((t) => `<option value="${t.id}" ${wordsTopic === t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select>
         <select class="select" id="w-status">
           <option value="all">Mọi trạng thái</option>
           <option value="due" ${wordsStatus === "due" ? "selected" : ""}>Cần ôn</option>
@@ -863,13 +1106,14 @@
         autoData = termToWord(t);
         $("#f-vi").value = t.vi; $("#f-topic").value = t.topic;
         if (!$("#f-ctx").value) $("#f-ctx").value = t.example;
-        $("#f-info").textContent = `Có sẵn trong bộ thuật ngữ: ${t.en}`;
+        $("#f-info").textContent = `Có sẵn trong bộ từ vựng: ${t.en || t.vi}`;
         return;
       }
-      $("#f-info").textContent = "Đang tra từ điển online…";
-      const r = await dictLookup(term);
+      $("#f-info").textContent = "Đang tra từ điển và dịch tự động…";
+      const [r, vi] = await Promise.all([dictLookup(term), translateVi(term)]);
+      if (vi && !$("#f-vi").value.trim()) $("#f-vi").value = vi;
       if (r) { autoData = { ipa: r.ipa, pos: r.pos, en: r.defs[0] ? r.defs[0].def : "", audio: r.audio }; $("#f-info").textContent = `${r.ipa} · ${r.defs.map((d) => d.pos + ": " + d.def).slice(0, 2).join(" | ")}`; }
-      else $("#f-info").textContent = r === null ? "Không có trong từ điển online — bạn tự gõ nghĩa nhé." : "Không kết nối được từ điển online.";
+      else $("#f-info").textContent = vi ? "✨ Đã dịch tự động nghĩa tiếng Việt, bạn kiểm tra lại nhé." : r === null ? "Không có trong từ điển online, bạn tự gõ nghĩa nhé." : "Không kết nối được từ điển online.";
     };
     form.onsubmit = (e) => {
       e.preventDefault();
@@ -888,7 +1132,7 @@
     const blob = new Blob([JSON.stringify(S, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `finfluent-backup-${todayStr()}.json`;
+    a.download = `wordstreet-backup-${todayStr()}.json`;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     S.lastBackup = Date.now(); save();
@@ -915,7 +1159,7 @@
           Object.entries(data.quizStats || {}).forEach(([k, v]) => { if (!S.quizStats[k]) S.quizStats[k] = v; });
         }
         save(); toast(`Đã nhập ${added} từ mới.`); if (after) after();
-      } catch (e) { toast("File không đúng định dạng backup FinFluent."); }
+      } catch (e) { toast("File không đúng định dạng backup WordStreet."); }
     };
     r.readAsText(file);
   }
@@ -924,10 +1168,11 @@
   // 12. Ôn tập
   // ---------------------------------------------------------
   let reviewMode = "flash", reviewQueue = [], reviewIdx = 0, revealed = false, extraPractice = false;
+  let rvStats = { 1: 0, 2: 0, 3: 0, 4: 0 }, rvHelp = false;
   function buildQueue() {
     const due = dueWords().sort((a, b) => a.srs.due - b.srs.due);
     reviewQueue = due.length ? due : (extraPractice ? shuffle(S.words).slice(0, 20) : []);
-    reviewIdx = 0; revealed = false;
+    reviewIdx = 0; revealed = false; rvStats = { 1: 0, 2: 0, 3: 0, 4: 0 };
   }
   function renderReview() {
     buildQueue();
@@ -948,10 +1193,16 @@
       return;
     }
     if (reviewIdx >= reviewQueue.length) {
-      box.innerHTML = `<div class="card empty flash"><h3>${due === 0 ? "Xong hết thẻ đến hạn hôm nay!" : "Hết lượt này"}</h3>
-        <p>Hôm nay bạn đã ôn ${S.daily.reviews} thẻ. ${due ? `Còn ${due} thẻ đến hạn.` : "Lịch ôn tiếp theo đã được hẹn sẵn."}</p>
-        <div class="row" style="justify-content:center;margin-top:16px">
-          ${due ? `<button class="btn btn-primary" id="rv-again">Ôn tiếp</button>` : `<button class="btn" id="rv-extra">Luyện thêm 20 từ ngẫu nhiên</button>`}
+      const tomorrow = S.words.filter((x) => x.srs.due <= Date.now() + DAY).length;
+      const done = rvStats[1] + rvStats[2] + rvStats[3] + rvStats[4];
+      const stat = (n, l, c) => `<div class="rv-stat ${c}"><b>${n}</b><span>${l}</span></div>`;
+      box.innerHTML = `<div class="card flash rv-done">
+        <div class="rv-done-ico">${ICONS.check}</div>
+        <h3>${due === 0 ? "Xong hết thẻ đến hạn hôm nay!" : "Hết lượt này"}</h3>
+        <p class="muted">Hôm nay bạn đã ôn ${S.daily.reviews} thẻ. ${due ? `Còn ${due} thẻ đến hạn.` : `Trong 24 giờ tới có <b>${tomorrow}</b> từ đến hạn ôn.`}</p>
+        ${done ? `<div class="rv-stats">${stat(rvStats[1], "Chưa nhớ", "r1")}${stat(rvStats[2], "Mang máng", "r2")}${stat(rvStats[3], "Nhớ được", "r3")}${stat(rvStats[4], "Quá dễ", "r4")}</div>` : ""}
+        <div class="row" style="justify-content:center;margin-top:18px;flex-wrap:wrap">
+          ${due ? `<button class="btn btn-primary" id="rv-again">Ôn tiếp</button>` : `<a class="btn btn-primary" href="#learn">Học từ mới</a><button class="btn" id="rv-extra">Luyện thêm 20 từ ngẫu nhiên</button>`}
           <a class="btn" href="#quiz">Sang Luyện đề</a></div></div>`;
       const a = $("#rv-again"), x = $("#rv-extra");
       if (a) a.onclick = () => { extraPractice = false; renderReview(); };
@@ -959,11 +1210,16 @@
       return;
     }
     const w = reviewQueue[reviewIdx];
-    const head = `<div class="row between small muted" style="margin-bottom:10px"><span>Thẻ ${reviewIdx + 1} / ${reviewQueue.length}${extraPractice && !due ? " · luyện thêm" : ""}</span><span class="row" style="gap:6px"><span class="dot" style="background:${topicOf(w.topic).color}"></span>${esc(topicOf(w.topic).name)}</span></div>`;
+    const pct = Math.round((reviewIdx / reviewQueue.length) * 100);
+    const head = `<div class="rv-head">
+        <div class="row between small muted"><span>Thẻ ${reviewIdx + 1} / ${reviewQueue.length}${extraPractice && !due ? " · luyện thêm" : ""}</span>
+        <span class="row" style="gap:6px"><span class="dot" style="background:${topicOf(w.topic).color}"></span>${esc(topicOf(w.topic).name)}</span></div>
+        <div class="bar thin"><span style="width:${pct}%"></span></div></div>`;
     if (reviewMode === "flash") drawFlash(box, w, head); else drawCloze(box, w, head);
   }
   function rate(w, r) {
     w.srs = schedule(w.srs, r);
+    rvStats[r]++;
     bump("reviews");
     if (r === 1) reviewQueue.push(w); // gặp lại cuối lượt
     reviewIdx++; revealed = false;
@@ -971,9 +1227,16 @@
   }
   function drawFlash(box, w, head) {
     const ctx = w.context || w.example || "";
-    box.innerHTML = `<div class="flash">${head}<div class="card">
+    const RATES = [
+      ["r1", 1, "Chưa nhớ", "Không nhớ ra / nhớ sai"],
+      ["r2", 2, "Mang máng", "Nghĩ lâu mới ra"],
+      ["r3", 3, "Nhớ được", "Nhớ ra sau vài giây"],
+      ["r4", 4, "Quá dễ", "Nhìn là biết ngay"]
+    ];
+    box.innerHTML = `<div class="flash">${head}<div class="card flash-card">
+      <div class="row between" style="margin-bottom:-8px">${memoryDots(w.srs)}<span class="xs muted">${esc(w.level || "")}</span></div>
       <div class="front">
-        <div class="row" style="justify-content:center;gap:10px"><div class="word">${esc(w.term)}</div><button class="icon-btn" id="fl-say">${ICONS.speak}</button></div>
+        <div class="row" style="justify-content:center;gap:10px"><div class="word">${esc(w.term)}</div><button class="icon-btn" id="fl-say" title="Phát âm">${ICONS.speak}</button></div>
         <div class="ipa" style="margin-top:4px">${esc(w.ipa || "")} ${w.pos ? "· " + esc(w.pos) : ""}</div>
         ${ctx ? `<div class="ctx">${highlight(ctx, w.term)}</div>` : ""}
       </div>
@@ -983,17 +1246,31 @@
         ${w.collocations || w.synonyms ? `<div class="grid grid-2" style="margin-top:14px">
           ${w.collocations ? `<div class="info-block small"><div class="k">Collocations</div>${esc(w.collocations)}</div>` : ""}
           ${w.synonyms ? `<div class="info-block small"><div class="k">Paraphrase</div>${esc(w.synonyms)}</div>` : ""}</div>` : ""}
-        <div class="rate">
-          ${[["r1", "Quên", 1], ["r2", "Khó", 2], ["r3", "Nhớ", 3], ["r4", "Dễ", 4]].map(([c, l, r]) => `<button class="${c}" data-rate="${r}">${l}<small>${intervalLabel(w.srs, r)}</small></button>`).join("")}
+        <div class="rate-q"><b>Lúc nãy bạn nhớ nghĩa từ này tới đâu?</b>
+          <button class="link-btn" id="rv-help-btn">${rvHelp ? "Ẩn giải thích" : "Các nút này là gì?"}</button></div>
+        <div class="rate-help ${rvHelp ? "" : "hidden"}" id="rv-help">
+          Đây là <b>ôn tập ngắt quãng</b>: bạn chấm mức nhớ, app hẹn ngày ôn lại. Nhớ càng chắc thì <b>lần gặp lại càng xa</b> (1 → 3 → 7 → 16 ngày…), nên từ dễ không làm phiền, từ khó được nhắc nhiều hơn.
+          Chọn <b>Chưa nhớ</b> thì từ quay lại ngay cuối lượt này. Khi khoảng cách đạt 21 ngày, từ được tính là <b>Đã thuộc</b>.
         </div>
-        <p class="xs muted" style="text-align:center;margin-top:10px">Phím tắt: <span class="kbd">1</span> <span class="kbd">2</span> <span class="kbd">3</span> <span class="kbd">4</span></p>
+        <div class="rate">
+          ${RATES.map(([c, r, l, d]) => `<button class="${c}" data-rate="${r}" title="${d}"><span class="rk">${r}</span>${l}<small>${intervalLabel(w.srs, r)}</small></button>`).join("")}
+        </div>
       </div>
-      <div id="fl-reveal-wrap" class="${revealed ? "hidden" : ""}" style="margin-top:20px">
-        <button class="btn btn-primary btn-block" id="fl-reveal">Hiện nghĩa <span class="kbd" style="color:inherit;border-color:currentColor;opacity:.7">Space</span></button>
-        <p class="xs muted" style="text-align:center;margin-top:8px">Tự nói nghĩa trong đầu trước, rồi mới bấm.</p>
+      <div id="fl-reveal-wrap" class="${revealed ? "hidden" : ""}" style="margin-top:22px">
+        <button class="btn btn-primary btn-block btn-lg" id="fl-reveal">Lật thẻ xem nghĩa <span class="kbd">Space</span></button>
+        <p class="xs muted" style="text-align:center;margin-top:8px">Tự nói nghĩa trong đầu trước, rồi mới lật. Nhớ hay quên đều được, quan trọng là chấm thật lòng.</p>
       </div></div></div>`;
     $("#fl-say").onclick = () => speak(w.term, w.audio);
-    $("#fl-reveal").onclick = () => { revealed = true; $("#fl-back").classList.remove("hidden"); $("#fl-reveal-wrap").classList.add("hidden"); };
+    $("#fl-reveal").onclick = () => {
+      revealed = true;
+      $("#fl-back").classList.remove("hidden"); $("#fl-reveal-wrap").classList.add("hidden");
+      speak(w.term, w.audio);
+    };
+    $("#rv-help-btn").onclick = () => {
+      rvHelp = !rvHelp;
+      $("#rv-help").classList.toggle("hidden", !rvHelp);
+      $("#rv-help-btn").textContent = rvHelp ? "Ẩn giải thích" : "Các nút này là gì?";
+    };
     $$("[data-rate]", box).forEach((b) => (b.onclick = () => rate(w, +b.dataset.rate)));
   }
   function drawCloze(box, w, head) {
@@ -1005,7 +1282,7 @@
     const sentence = m ? esc(ctx.slice(0, m.index)) + '<span class="blank">_____</span>' + esc(ctx.slice(m.index + m[0].length)) : `<span class="muted">(Chưa có câu ngữ cảnh)</span> Từ tiếng Anh nghĩa là: <b>${esc(w.vi)}</b>`;
     box.innerHTML = `<div class="flash">${head}<div class="card">
       <p class="ctx" style="font-family:var(--serif);font-size:19px;line-height:1.65;margin-bottom:12px">${sentence}</p>
-      <p class="small muted">Gợi ý: <b style="color:var(--ink)">${esc(w.vi)}</b> · bắt đầu bằng “${esc(answer[0])}” · ${answer.length} ký tự</p>
+      <p class="small muted">Nghĩa: <b style="color:var(--ink)">${esc(w.vi)}</b> · bắt đầu bằng “${esc(answer[0])}” · ${answer.length} ký tự</p>
       <div class="row" style="margin-top:14px"><input class="input" id="cz-in" placeholder="Gõ từ còn thiếu rồi Enter…" autocomplete="off" autocapitalize="off" spellcheck="false" />
       <button class="btn btn-primary" id="cz-check">Kiểm tra</button></div>
       <div id="cz-fb" class="explain hidden"></div>
@@ -1024,6 +1301,7 @@
       fb.classList.remove("hidden");
       fb.innerHTML = ok ? `<b class="ok">Chính xác!</b> ${esc(answer)} — ${esc(w.vi)}` : `<b class="no">Chưa đúng.</b> Đáp án: <b>${esc(answer)}</b> (${esc(w.term)}) — ${esc(w.vi)}`;
       w.srs = schedule(w.srs, ok ? 3 : 1);
+      rvStats[ok ? 3 : 1]++;
       if (!ok) reviewQueue.push(w);
       bump("reviews");
       if (ok) speak(w.term, w.audio);
@@ -1039,27 +1317,52 @@
   // ---------------------------------------------------------
   // 13. Luyện đề
   // ---------------------------------------------------------
-  let quizTopic = "all", quizSession = null;
+  let quizTopic = "all", quizDeck = "toeic", quizLevel = "all", quizSession = null;
   function renderQuiz() {
     if (quizSession && !quizSession.finished) return drawQuizQuestion();
-    const counts = { all: QUIZ.length };
-    QUIZ.forEach((q) => (counts[q.topic] = (counts[q.topic] || 0) + 1));
-    const stats = TOPICS.map((t) => { const s = S.quizStats[t.id]; return s ? `<span class="tag">${esc(t.name)}: ${Math.round((s.c / s.t) * 100)}%</span>` : ""; }).join("");
+    const isToeic = quizDeck === "toeic";
+    const bank = isToeic ? TOEIC_QUIZ : QUIZ;
+    const topics = isToeic ? TOEIC_TOPICS : TOPICS;
+    const counts = { all: bank.length };
+    bank.forEach((q) => (counts[q.topic] = (counts[q.topic] || 0) + 1));
+    const lcounts = { all: bank.length };
+    bank.forEach((q) => (lcounts[q.level] = (lcounts[q.level] || 0) + 1));
+    const pool = bank.filter((q) => isToeic ? (quizLevel === "all" || q.level === quizLevel) : (quizTopic === "all" || q.topic === quizTopic));
+    const stats = topics.map((t) => { const s = S.quizStats[t.id]; return s ? `<span class="tag">${esc(t.name)}: ${Math.round((s.c / s.t) * 100)}%</span>` : ""; }).join("");
     $("#view").innerHTML = `
-      <div class="page-head"><div><h1>Luyện đề TOEIC 800+ & C1</h1>
-        <p>Mỗi phiên 10 câu: ngữ pháp TOEIC Part 5, từ vựng, collocation và paraphrase trong ngữ cảnh tài chính. Có giải thích tiếng Việt cho từng câu.</p></div></div>
-      ${topicChips(quizTopic, (t) => { quizTopic = t; quizSession = null; renderQuiz(); }, counts)}
+      <div class="page-head"><div><h1>Luyện đề</h1>
+        <p>${isToeic
+          ? "TOEIC Part 5 cơ bản: ngữ pháp, từ loại và từ vựng công sở. Mỗi phiên 10 câu, câu B1 ra trước rồi mới tới B2."
+          : "Nâng cao: Part 5, collocation và paraphrase C1 trong ngữ cảnh tài chính."} Có giải thích tiếng Việt cho từng câu.</p></div>
+        <div class="seg" id="qz-deck">
+          <button data-deck="toeic" class="${isToeic ? "on" : ""}">TOEIC cơ bản · ${TOEIC_QUIZ.length}</button>
+          <button data-deck="fin" class="${!isToeic ? "on" : ""}">Tài chính nâng cao · ${QUIZ.length}</button>
+        </div></div>
+      ${isToeic ? `<div class="chips" id="qz-levels">
+          <button class="chip ${quizLevel === "all" ? "on" : ""}" data-level="all">Trộn B1 + B2 · ${lcounts.all}</button>
+          <button class="chip ${quizLevel === "B1" ? "on" : ""}" data-level="B1">B1 · cơ bản · ${lcounts.B1 || 0}</button>
+          <button class="chip ${quizLevel === "B2" ? "on" : ""}" data-level="B2">B2 · khá · ${lcounts.B2 || 0}</button>
+        </div>` : topicChips(quizTopic, (t) => { quizTopic = t; quizSession = null; renderQuiz(); }, counts)}
       <div class="card" style="max-width:640px">
         <h3 style="font-size:17px">Sẵn sàng?</h3>
-        <p class="muted small" style="margin:6px 0 14px">${quizTopic === "all" ? "Trộn câu hỏi từ mọi chủ đề." : "Chủ đề: " + esc(topicOf(quizTopic).name)} · ${Math.min(10, counts[quizTopic === "all" ? "all" : quizTopic] || 0)} câu</p>
+        <p class="muted small" style="margin:6px 0 14px">${isToeic
+          ? (quizLevel === "all" ? "Trộn câu B1 và B2, câu dễ ra trước." : "Chỉ câu cấp " + esc(quizLevel) + ".")
+          : (quizTopic === "all" ? "Trộn câu hỏi từ mọi chủ đề." : "Chủ đề: " + esc(topicOf(quizTopic).name))} · ${Math.min(10, pool.length)} câu</p>
         ${stats ? `<div class="row wrap" style="gap:6px;margin-bottom:14px">${stats}</div>` : ""}
         ${quizSession && quizSession.finished ? quizSummary() : ""}
         <button class="btn btn-primary" id="qz-start">${quizSession && quizSession.finished ? "Làm phiên mới" : "Bắt đầu 10 câu"}</button>
       </div>`;
+    $$("#qz-deck [data-deck]").forEach((b) => (b.onclick = () => {
+      if (quizDeck === b.dataset.deck) return;
+      quizDeck = b.dataset.deck; quizTopic = "all"; quizLevel = "all"; quizSession = null; renderQuiz();
+    }));
+    $$("#qz-levels [data-level]").forEach((b) => (b.onclick = () => { quizLevel = b.dataset.level; quizSession = null; renderQuiz(); }));
     $("#qz-start").onclick = () => {
-      const pool = QUIZ.filter((q) => quizTopic === "all" || q.topic === quizTopic);
-      if (!pool.length) { toast("Chưa có câu hỏi cho chủ đề này."); return; }
-      quizSession = { list: shuffle(pool).slice(0, 10), idx: 0, results: [], finished: false };
+      if (!pool.length) { toast("Chưa có câu hỏi cho lựa chọn này."); return; }
+      let list = shuffle(pool).slice(0, 10);
+      // Thăng tiến từ từ: câu B1 trước, B2 sau
+      if (isToeic) list = list.filter((q) => q.level === "B1").concat(list.filter((q) => q.level !== "B1"));
+      quizSession = { list, idx: 0, results: [], finished: false };
       drawQuizQuestion();
     };
     const retry = $("#qz-retry");
@@ -1083,7 +1386,7 @@
         <span class="muted small">Câu ${s.idx + 1}/${s.list.length} · Đúng ${s.results.filter((r) => r.ok).length}</span></div>
       <div class="bar" style="max-width:720px;margin:0 auto 16px"><span style="width:${(s.idx / s.list.length) * 100}%"></span></div>
       <div class="card" style="max-width:720px;margin:0 auto">
-        <div class="row wrap" style="gap:6px;margin-bottom:8px"><span class="tag gold">${esc(q.type || "")}</span><span class="tag"><span class="dot" style="background:${t.color}"></span>${esc(t.name)}</span></div>
+        <div class="row wrap" style="gap:6px;margin-bottom:8px"><span class="tag blue">${esc(q.type || "")}</span>${q.level ? `<span class="tag">${esc(q.level)}</span>` : ""}<span class="tag"><span class="dot" style="background:${t.color}"></span>${esc(t.name)}</span></div>
         <div id="qz-box">${questionHtml(q, 0, "qz").replace('<div class="q-text">1. ', '<div class="q-text" style="font-size:17px">')}</div>
         <div class="row hidden" id="qz-next-row" style="margin-top:14px"><span class="spacer"></span><button class="btn btn-primary" id="qz-next">${s.idx + 1 < s.list.length ? "Câu tiếp →" : "Xem kết quả"}</button></div>
       </div>`;
@@ -1123,6 +1426,26 @@
   }
   $("#accent-us").onclick = () => { setAccent("en-US"); toast("Giọng Mỹ (US)"); };
   $("#accent-uk").onclick = () => { setAccent("en-GB"); toast("Giọng Anh (UK)"); };
+
+  // ---------------------------------------------------------
+  // 15. "Cửa" cho các file tính năng khác (vd js/listen.js)
+  // ---------------------------------------------------------
+  // app.js được bọc trong (function(){ ... })() nên biến bên trong là "riêng tư".
+  // window.WS mở ra một số hàm dùng chung để file khác gọi được, ví dụ: WS.toast("Xin chào").
+  const PAGES = {};
+  window.WS = {
+    $, $$, esc, shuffle, todayStr, toast, ICONS,
+    get S() { return S; },                 // dữ liệu học của bạn (luôn lấy bản mới nhất)
+    save, bump, ensureDay,
+    speakText, translateVi, openLookup, findWord, splitSentences,
+    speak, highlight, topicOf, addWord, termToWord, schedule, DAY,
+    data: { TOEIC, EXTRA, TERMS, TOEIC_ARTICLES, ARTICLES, STAGES, DECKS },
+    registerPage(id, render) {
+      PAGES[id] = render;
+      // Nếu đang đứng đúng trang đó (vd F5 tại #listen) thì vẽ lại ngay
+      if ((location.hash || "").slice(1).split("/")[0] === id) route();
+    }
+  };
 
   document.title = `${CFG.appName} — ${CFG.tagline}`;
   $("#app-name").textContent = CFG.appName;

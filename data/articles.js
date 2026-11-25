@@ -1,5 +1,5 @@
 // ============================================================
-// FinFluent - BÀI ĐỌC
+// WordStreet - BÀI ĐỌC
 // Cách thêm bài mới:
 //   1. Sao chép (copy) nguyên một khối { ... } trong mảng bên dưới, dán vào cuối mảng
 //      và nhớ thêm dấu phẩy giữa các khối.
@@ -9,7 +9,7 @@
 //      (0 = lựa chọn thứ nhất, 1 = thứ hai, 2 = thứ ba, 3 = thứ tư).
 //   5. "summary" và "explain" viết bằng tiếng Việt có dấu.
 // ============================================================
-window.FF_ARTICLES = [
+window.WS_ARTICLES = [
   // ---------------------------- MACRO ----------------------------
   {
     id: "eurozone-soft-landing",

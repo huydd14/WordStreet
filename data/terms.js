@@ -1,10 +1,10 @@
 // ============================================================
-// FinFluent - BỘ THUẬT NGỮ TÀI CHÍNH
+// WordStreet - BỘ THUẬT NGỮ TÀI CHÍNH
 // Muốn thêm từ: copy 1 khối { ... }, dán xuống cuối danh sách, nhớ dấu phẩy.
 // topic phải là 1 trong: macro, monetary, stocks, corporate, news, fx
 // level: "B2", "C1" hoặc "TOEIC"
 // ============================================================
-window.FF_TERMS = [
+window.WS_TERMS = [
   // ===================== MACRO =====================
   {
     term: "GDP",
