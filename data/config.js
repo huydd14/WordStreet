@@ -5,7 +5,7 @@
 // ============================================================
 window.WS_CONFIG = {
   appName: "WordStreet",
-  tagline: "English for Finance · TOEIC 800+ & C1",
+  tagline: "Tự học TOEIC 800 mỗi ngày",
 
   // Mục tiêu mỗi ngày
   goals: {

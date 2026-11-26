@@ -84,7 +84,25 @@
   let ses = null;
   // ses = { deckId, topicName, words:[{t, miss, done}], queue:[{type, w}], pos, answered, right, wrong }
 
-  function startSession(deckId, topic) {
+  // Còn quá nhiều thẻ chưa ôn → khuyên ôn trước (vẫn cho học nếu bấm "Vẫn học")
+  function drawGate(deckId, topic, due) {
+    history.replaceState(null, "", "#learn/" + deckId);
+    $("#view").innerHTML = `
+      <div class="learn"><div class="card ln-card center">
+        <p class="ln-kicker"><span class="tag gold">Khoan học từ mới đã</span></p>
+        <h2 style="font-size:22px;margin:6px 0 10px">Bạn đang có ${due} thẻ chờ ôn</h2>
+        <p class="muted" style="max-width:460px;margin:0 auto">Học thêm từ mới khi thẻ cũ còn dồn nhiều thì từ cũ sẽ quên nhanh hơn tốc độ học từ mới. Ôn xuống dưới ${WS.REVIEW_CAP} thẻ rồi quay lại học bài mới nhé.</p>
+        <div class="row" style="justify-content:center;margin-top:22px;flex-wrap:wrap">
+          <a class="btn btn-primary btn-lg" href="#review">Ôn ${due} thẻ trước</a>
+          <button class="btn btn-ghost" id="ln-force">Vẫn học bài mới</button>
+        </div>
+      </div></div>`;
+    $("#ln-force").onclick = () => startSession(deckId, topic, true);
+  }
+
+  function startSession(deckId, topic, force) {
+    const due = WS.dueWords().length;
+    if (!force && due > WS.REVIEW_CAP) return drawGate(deckId, topic, due);
     const batch = nextBatch(deckId, topic);
     if (!batch.length) { toast("Bạn đã học hết từ trong phần này rồi!"); drawMap(deckId); return; }
     const words = batch.map((t) => ({ t, miss: 0, done: false }));

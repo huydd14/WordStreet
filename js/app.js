@@ -87,15 +87,34 @@
     edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>'
   };
 
+  // Menu chính chỉ còn 5 mục. Mỗi mục có "tab con" (SUBNAV) hiện ngay dưới thanh trên cùng.
   const NAV = [
     { id: "today", label: "Hôm nay", icon: ICONS.today },
-    { id: "read", label: "Đọc hiểu", icon: ICONS.read },
-    { id: "listen", label: "Luyện nghe", icon: ICONS.listen },
-    { id: "glossary", label: "Từ vựng", icon: ICONS.glossary },
-    { id: "words", label: "Từ của tôi", icon: ICONS.words },
-    { id: "review", label: "Ôn tập", icon: ICONS.review },
+    { id: "vocab", href: "learn", label: "Từ vựng", icon: ICONS.glossary },
+    { id: "read", label: "Đọc", icon: ICONS.read },
+    { id: "listen", label: "Nghe", icon: ICONS.listen },
     { id: "quiz", label: "Luyện đề", icon: ICONS.quiz }
   ];
+  const SUBNAV = {
+    vocab: [
+      { id: "learn", label: "Học bài mới" },
+      { id: "review", label: "Ôn tập", badge: "review" },
+      { id: "glossary", label: "Kho từ" },
+      { id: "words", label: "Từ của tôi" }
+    ],
+    listen: [
+      { id: "listen", label: "Nghe chép chính tả" },
+      { id: "part2", label: "Hỏi – đáp (Part 2)" }
+    ],
+    quiz: [
+      { id: "quiz", label: "Luyện đề" },
+      { id: "mistakes", label: "Sổ câu sai", badge: "mistakes" }
+    ]
+  };
+  // trang → mục menu chứa nó
+  const GROUP_OF = { learn: "vocab", review: "vocab", glossary: "vocab", words: "vocab", listen: "listen", part2: "listen", quiz: "quiz", mistakes: "quiz", read: "read", today: "today" };
+  // Còn quá nhiều thẻ chưa ôn thì nên ôn trước rồi mới học từ mới (tránh dồn thẻ)
+  const REVIEW_CAP = 40;
 
   // ---------------------------------------------------------
   // 2. Lưu trữ (localStorage)
@@ -108,6 +127,7 @@
       articlesDone: {},
       customArticles: [],
       quizStats: {},
+      mistakes: {},          // sổ câu sai: { khóa câu: { deck, n, t, fixed } }
       daily: freshDaily(),
       streak: { count: 0, last: null },
       accent: CFG.accent || "en-US",
@@ -377,10 +397,13 @@
       $("#banner-later").onclick = () => { S.backupSnoozeUntil = Date.now() + 2 * DAY; save(); el.classList.add("hidden"); };
     } else el.classList.add("hidden");
   }
+  function openMistakes(deck) {
+    return Object.values(S.mistakes || {}).filter((m) => !m.fixed && (!deck || m.deck === deck)).length;
+  }
   function updateBadges() {
-    const n = dueWords().length;
-    const b = $("#nav-badge-review");
-    if (b) { b.textContent = n > 99 ? "99+" : n; b.classList.toggle("hidden", n === 0); }
+    const set = (sel, n) => $$(sel).forEach((b) => { b.textContent = n > 99 ? "99+" : n; b.classList.toggle("hidden", n === 0); });
+    set("[data-badge=review]", dueWords().length);
+    set("[data-badge=mistakes]", openMistakes());
   }
 
   // ---------------------------------------------------------
@@ -388,7 +411,16 @@
   // ---------------------------------------------------------
   function renderNav() {
     $("#nav").innerHTML = NAV.map((n) => `
-      <a href="#${n.id}" data-nav="${n.id}">${n.icon}<span class="lbl">${n.label}</span>${n.id === "review" ? '<span class="badge hidden" id="nav-badge-review"></span>' : ""}</a>`).join("");
+      <a href="#${n.href || n.id}" data-nav="${n.id}">${n.icon}<span class="lbl">${n.label}</span>${n.id === "vocab" ? '<span class="badge hidden" data-badge="review"></span>' : ""}</a>`).join("");
+    updateBadges();
+  }
+  // Tab con của mục đang mở (vd Từ vựng: Học bài mới · Ôn tập · Kho từ · Từ của tôi)
+  function renderSubnav(page) {
+    const el = $("#subnav"), items = SUBNAV[GROUP_OF[page]];
+    if (!el) return;
+    if (!items) { el.classList.add("hidden"); el.innerHTML = ""; return; }
+    el.innerHTML = `<div class="subnav-in">${items.map((x) => `<a href="#${x.id}" class="${x.id === page ? "on" : ""}">${x.label}${x.badge ? `<span class="badge hidden" data-badge="${x.badge}"></span>` : ""}</a>`).join("")}</div>`;
+    el.classList.remove("hidden");
     updateBadges();
   }
   function route() {
@@ -397,8 +429,9 @@
     const hash = (location.hash || "#today").slice(1);
     const [page, arg] = hash.split("/");
     const view = $("#view");
-    const navPage = page === "learn" ? "glossary" : page; // trang Học từ thuộc mục Từ vựng
-    $$("#nav a").forEach((a) => a.classList.toggle("active", a.dataset.nav === navPage));
+    const group = GROUP_OF[page] || (PAGES[page] ? page : "today");
+    $$("#nav a").forEach((a) => a.classList.toggle("active", a.dataset.nav === group));
+    renderSubnav(page);
     view.classList.remove("fade-in"); void view.offsetWidth; view.classList.add("fade-in");
     switch (page) {
       case "read": arg ? renderArticle(decodeURIComponent(arg)) : renderArticleList(); break;
@@ -408,6 +441,7 @@
       case "words": renderWords(); break;
       case "review": renderReview(); break;
       case "quiz": renderQuiz(); break;
+      case "mistakes": renderMistakes(); break;
       default:
         // Trang do file khác đăng ký (vd js/listen.js) qua WS.registerPage
         if (PAGES[page]) PAGES[page](arg); else renderToday();
@@ -419,84 +453,97 @@
   // ---------------------------------------------------------
   // 7. Trang "Hôm nay"
   // ---------------------------------------------------------
+  // "Đã học" = đã qua bài học hoặc đã ôn ít nhất 1 lần (chỉ bấm "+ Lưu" thì chưa tính)
+  function isLearned(w) { return !!(w.srs && (w.srs.last || w.srs.reps > 0)); }
+
   function renderToday() {
     const g = CFG.goals, d = S.daily;
     const due = dueWords().length;
     const reviewTarget = Math.min(g.reviews, d.reviews + due) || g.reviews;
+    const learned = S.words.filter(isLearned).length;
     const mastered = S.words.filter((w) => w.srs.interval >= MASTERED_DAYS).length;
-    const allArticles = BUILTIN_ARTICLES.length;
-    const readCount = BUILTIN_ARTICLES.filter((a) => S.articlesDone[a.id]).length;
+    const wrongOpen = openMistakes();
     const qs = Object.values(S.quizStats).reduce((acc, x) => ({ c: acc.c + x.c, t: acc.t + x.t }), { c: 0, t: 0 });
-    const acc = qs.t ? Math.round((qs.c / qs.t) * 100) + "%" : "—";
-    const h = new Date().getHours();
+    const acc = qs.t ? Math.round((qs.c / qs.t) * 100) + "%" : "–";
+    const now = new Date(), h = now.getHours();
     const hello = h < 11 ? "Chào buổi sáng" : h < 14 ? "Chào buổi trưa" : h < 18 ? "Chào buổi chiều" : "Chào buổi tối";
+    const dateline = now.toLocaleDateString("vi-VN", { weekday: "long", day: "numeric", month: "numeric", year: "numeric" });
+    const streak = currentStreak();
     // Gợi ý: đọc hết bài TOEIC theo thứ tự trước, rồi mới tới bài báo tài chính
     const nextArticle = BUILTIN_ARTICLES.find((a) => !S.articlesDone[a.id]) || BUILTIN_ARTICLES[0];
+    const tooMany = due > REVIEW_CAP;
 
-    const goals = [
-      { icon: ICONS.read, title: "Đọc 1 bài báo", cur: d.articles, max: g.articles, href: nextArticle ? "#read/" + nextArticle.id : "#read", cta: "Đọc ngay", sub: nextArticle ? nextArticle.title : "" },
-      { icon: ICONS.words, title: "Học từ mới", cur: d.newWords, max: g.newWords, href: "#learn/next.next.go", cta: "Học bài tiếp", sub: "Học 1 bài 10 từ: xem → trắc nghiệm → gõ lại" },
-      { icon: ICONS.review, title: "Ôn thẻ đến hạn", cur: d.reviews, max: reviewTarget, href: "#review", cta: due ? `Ôn ${due} thẻ` : "Ôn tập", sub: due ? `Còn ${due} thẻ đang chờ` : "Không còn thẻ đến hạn" },
-      { icon: ICONS.quiz, title: "Luyện đề", cur: d.quiz, max: g.quiz, href: "#quiz", cta: "Làm đề", sub: d.quiz ? `Đúng ${d.quizCorrect}/${d.quiz} câu hôm nay` : "TOEIC Part 5 & C1 usage" },
-      { icon: ICONS.listen, title: "Luyện nghe", cur: d.listen || 0, max: g.listen || 10, href: "#listen", cta: "Nghe chép", sub: "Nghe câu tiếng Anh rồi gõ lại, luyện tai cho Listening" }
+    // Thứ tự = thứ tự nên làm: ôn thẻ cũ trước, rồi mới học từ mới
+    const plan = [
+      { title: "Ôn thẻ đến hạn", cur: d.reviews, max: reviewTarget, href: "#review", cta: due ? `Ôn ${due} thẻ` : "Ôn tập",
+        sub: due ? `Còn ${due} thẻ đang chờ. Nên làm việc này trước.` : "Không còn thẻ nào đến hạn." },
+      { title: "Học từ mới", cur: d.newWords, max: g.newWords, warn: tooMany,
+        href: tooMany ? "#review" : "#learn/next.next.go", cta: tooMany ? "Ôn bớt trước" : "Học bài tiếp",
+        sub: tooMany ? `Đang dồn ${due} thẻ chưa ôn. Ôn xuống dưới ${REVIEW_CAP} rồi hẵng học thêm, không thì sẽ quên nhanh.` : `1 bài ${g.newWords} từ: xem → chọn nghĩa → chọn từ → gõ lại.` },
+      { title: "Luyện đề Part 5", cur: d.quiz, max: g.quiz, href: wrongOpen >= 5 ? "#mistakes" : "#quiz", cta: wrongOpen >= 5 ? `Làm lại ${wrongOpen} câu sai` : "Làm đề",
+        sub: d.quiz ? `Hôm nay đúng ${d.quizCorrect}/${d.quiz} câu.` : wrongOpen ? `Sổ câu sai đang có ${wrongOpen} câu chờ làm lại.` : "10 câu điền vào chỗ trống, có giải thích." },
+      { title: "Luyện nghe", cur: d.listen || 0, max: g.listen || 10, href: "#part2", cta: "Nghe",
+        sub: "Part 2 hỏi – đáp hoặc nghe chép chính tả, đều được tính." },
+      { title: "Đọc 1 bài", cur: d.articles, max: g.articles, href: nextArticle ? "#read/" + nextArticle.id : "#read", cta: "Đọc",
+        sub: nextArticle ? "Bài tiếp theo: " + nextArticle.title : "" }
     ];
+    const left = plan.filter((x) => x.cur < x.max).length;
 
-    const topicRows = TOPICS.map((t) => {
-      const total = TERMS.filter((x) => x.topic === t.id).length;
-      const saved = S.words.filter((w) => w.topic === t.id).length;
-      const st = S.quizStats[t.id];
-      const pct = total ? Math.min(100, Math.round((saved / total) * 100)) : 0;
-      return `<div class="stack" style="gap:6px">
-        <div class="row between small"><span class="row" style="gap:8px"><span class="dot" style="background:${t.color}"></span><b>${esc(t.name)}</b></span>
-        <span class="muted xs">${saved}/${total} từ${st ? ` · đề ${Math.round((st.c / st.t) * 100)}%` : ""}</span></div>
-        <div class="bar"><span style="width:${pct}%;background:${t.color}"></span></div></div>`;
-    }).join("") + (TOEIC.length ? (() => {
-      const savedT = TOEIC.filter((t) => findWord(t.term)).length;
-      const pctT = Math.round((savedT / TOEIC.length) * 100);
-      return `<a class="stack toeic-row" href="#glossary/toeic" style="gap:6px;text-decoration:none;color:inherit">
-        <div class="row between small"><b>600 từ vựng TOEIC</b><span class="muted xs">${savedT}/${TOEIC.length} từ</span></div>
-        <div class="bar"><span style="width:${pctT}%"></span></div></a>`;
-    })() : "");
+    // Tiến độ từng bộ từ: đã học (nhạt) và đã thuộc (đậm)
+    const deckRows = ["toeic", "extra", "phr", "fin"].map((id) => {
+      const dk = DECKS[id];
+      const keys = new Set(dk.terms.map((t) => t.term.toLowerCase()));
+      const mine = S.words.filter((w) => keys.has(w.term.toLowerCase()));
+      const l = mine.filter(isLearned).length, m = mine.filter((w) => w.srs.interval >= MASTERED_DAYS).length, n = dk.terms.length;
+      return `<a class="deck-row" href="#learn/${id}">
+        <div class="row between"><b>${esc(dk.label)}</b><span class="muted xs">${l}/${n} đã học${m ? ` · ${m} đã thuộc` : ""}</span></div>
+        <div class="bar duo"><span class="b1" style="width:${n ? (l / n) * 100 : 0}%"></span><span class="b2" style="width:${n ? (m / n) * 100 : 0}%"></span></div>
+      </a>`;
+    }).join("");
 
     $("#view").innerHTML = `
-      <section class="hero">
-        <div class="streak"><b>${currentStreak()}</b><small>ngày liên tiếp</small></div>
-        <h1>${hello}! Hôm nay học gì?</h1>
-        <p>Mục tiêu: đọc hiểu báo tài chính, dùng thuật ngữ chuẩn — hướng tới <b>C1</b> và <b>TOEIC 800+</b>.</p>
-        <div class="ticker">
-          <div><b>${S.words.length}</b>từ đã lưu</div>
-          <div><b>${mastered}</b>từ đã thuộc</div>
-          <div><b>${readCount}/${allArticles}</b>bài đã đọc</div>
-          <div><b>${acc}</b>độ chính xác luyện đề</div>
-        </div>
+      <section class="today-head">
+        <p class="dateline"><span>${esc(dateline.charAt(0).toUpperCase() + dateline.slice(1))}</span>${streak ? `<span class="streak-pill">${streak} ngày liên tiếp</span>` : ""}</p>
+        <h1>${hello}.</h1>
+        <p class="lede">${left ? `Hôm nay còn <b>${left} việc</b>. Làm lần lượt từ trên xuống là được.` : "Xong hết kế hoạch hôm nay rồi. Muốn học thêm thì cứ bấm “Làm thêm”."}</p>
+        <dl class="ledger">
+          <div><dt>Từ đã học</dt><dd>${learned}</dd></div>
+          <div><dt>Đã thuộc</dt><dd>${mastered}</dd></div>
+          <div><dt>Thẻ chờ ôn</dt><dd class="${tooMany ? "warn" : ""}">${due}</dd></div>
+          <div><dt>Câu sai chờ làm lại</dt><dd>${wrongOpen}</dd></div>
+          <div><dt>Đúng khi luyện đề</dt><dd>${acc}</dd></div>
+        </dl>
       </section>
 
       <h2 class="section-title">Kế hoạch hôm nay</h2>
-      <div class="grid goals-grid">
-        ${goals.map((x) => {
+      <ol class="plan">
+        ${plan.map((x, i) => {
           const done = x.cur >= x.max && x.max > 0;
           const pct = x.max ? Math.min(100, Math.round((x.cur / x.max) * 100)) : 0;
-          return `<div class="card goal ${done ? "done" : ""}">
-            <div class="goal-top"><span class="goal-icon">${done ? ICONS.check : x.icon}</span>
-              <div><h3>${x.title}</h3><div class="count">${x.cur} / ${x.max}</div></div></div>
-            <div class="bar"><span style="width:${pct}%"></span></div>
-            <p class="muted xs" style="min-height:34px">${esc(x.sub)}</p>
-            <a class="btn btn-sm ${done ? "" : "btn-primary"}" href="${x.href}">${done ? "Làm thêm" : x.cta}</a>
-          </div>`;
+          return `<li class="plan-row ${done ? "done" : ""} ${x.warn ? "warn" : ""}">
+            <span class="plan-no">${done ? ICONS.check : i + 1}</span>
+            <div class="plan-main">
+              <div class="plan-title">${x.title} <span class="plan-count">${x.cur}/${x.max}</span></div>
+              <p class="plan-sub">${esc(x.sub)}</p>
+              <div class="bar thin"><span style="width:${pct}%"></span></div>
+            </div>
+            <a class="btn btn-sm ${done ? "btn-ghost" : "btn-primary"}" href="${x.href}">${done ? "Làm thêm" : x.cta}</a>
+          </li>`;
         }).join("")}
-      </div>
+      </ol>
 
-      <div class="grid grid-2" style="margin-top:14px">
-        <div class="card">
-          <h3 style="font-size:16px;margin-bottom:14px">Tiến độ theo chủ đề</h3>
-          <div class="stack" style="gap:14px">${topicRows}</div>
+      <div class="grid grid-2 today-bottom">
+        <div>
+          <h2 class="section-title">Tiến độ từ vựng</h2>
+          <div class="decks">${deckRows}</div>
+          <p class="xs muted" style="margin-top:10px">Vạch nhạt: đã học qua. Vạch đậm: đã thuộc (lần ôn sau cách từ ${MASTERED_DAYS} ngày trở lên).</p>
         </div>
-        <div class="card roadmap">
-          <h3 style="font-size:16px;margin-bottom:14px">Lộ trình 12 tuần gợi ý</h3>
+        <div class="roadmap">
+          <h2 class="section-title">Lộ trình 12 tuần</h2>
           <ol>
-            <li><div><b>Tuần 1–4 · Nền từ vựng</b><span class="muted small">Mỗi ngày học 1 bài 10 từ trong <a href="#learn/toeic">lộ trình 600 từ TOEIC</a> (B1 trước), ôn hết thẻ đến hạn. Sau đó chuyển sang thuật ngữ Vĩ mô và Tiền tệ.</span></div></li>
-            <li><div><b>Tuần 5–8 · Đọc báo & paraphrase</b><span class="muted small">Mỗi ngày 1 bài báo, làm 3 câu đọc hiểu. Để ý cách bài báo diễn đạt lại một ý bằng từ khác (paraphrase) — kỹ năng cốt lõi của TOEIC Part 7 và C1.</span></div></li>
-            <li><div><b>Tuần 9–12 · Luyện đề & tăng tốc</b><span class="muted small">Mỗi ngày 10–20 câu luyện đề, dán thêm bài báo thật (Reuters, Bloomberg) để đọc nhanh hơn.</span></div></li>
+            <li><div><b>Tuần 1–4 · Nền từ vựng</b><span class="muted small">Mỗi ngày 1 bài 10 từ trong <a href="#learn/toeic">600 từ TOEIC</a> (B1 trước) và ôn hết thẻ đến hạn. Nghe Part 2 mỗi ngày 10 câu cho quen tai.</span></div></li>
+            <li><div><b>Tuần 5–8 · Ngữ pháp & đọc</b><span class="muted small">Luyện đề Part 5 mỗi ngày, làm lại hết câu trong Sổ câu sai. Đọc 1 bài TOEIC/ngày, để ý cách đề diễn đạt lại ý bằng từ khác.</span></div></li>
+            <li><div><b>Tuần 9–12 · Tăng tốc</b><span class="muted small">Chuyển sang TOEIC mở rộng và Cụm từ, đọc thêm báo tài chính. Mục tiêu: đúng 85% trở lên ở Part 5 và Part 2.</span></div></li>
           </ol>
         </div>
       </div>`;
@@ -1206,7 +1253,7 @@
     $$("[data-mode]").forEach((b) => (b.onclick = () => { reviewMode = b.dataset.mode; drawReview(); }));
     const box = $("#rv");
     if (!S.words.length) {
-      box.innerHTML = `<div class="card empty"><h3>Chưa có từ để ôn</h3><p>Lưu vài từ trong bài báo hoặc mục Thuật ngữ trước nhé.</p><div class="row" style="justify-content:center;margin-top:14px"><a class="btn btn-primary" href="#glossary">Mở Thuật ngữ</a></div></div>`;
+      box.innerHTML = `<div class="card empty"><h3>Chưa có từ để ôn</h3><p>Học 1 bài từ mới trước, từ đã học sẽ tự vào đây để ôn.</p><div class="row" style="justify-content:center;margin-top:14px"><a class="btn btn-primary" href="#learn">Học bài mới</a></div></div>`;
       return;
     }
     if (reviewIdx >= reviewQueue.length) {
@@ -1410,14 +1457,68 @@
       s.results.push({ q, ok });
       const st = S.quizStats[q.topic] || (S.quizStats[q.topic] = { c: 0, t: 0 });
       st.t++; if (ok) st.c++;
+      noteMistake(TOEIC_QUIZ.includes(q) ? "toeic" : "fin", q.q, ok);
       ensureDay(); S.daily.quizCorrect += ok ? 1 : 0; bump("quiz");
       $("#qz-next-row").classList.remove("hidden");
       $("#qz-next").focus();
     });
     $("#qz-next").onclick = () => {
       s.idx++;
-      if (s.idx >= s.list.length) { s.finished = true; renderQuiz(); } else drawQuizQuestion();
+      if (s.idx >= s.list.length) { s.finished = true; s.fromMistakes ? renderMistakes() : renderQuiz(); } else drawQuizQuestion();
     };
+    if (s.fromMistakes) $("#qz-quit").onclick = () => { quizSession = null; renderMistakes(); };
+  }
+
+  // ---------------------------------------------------------
+  // 13b. Sổ câu sai
+  // Làm sai → câu vào sổ. Làm lại đúng → gạch khỏi sổ (vẫn giữ lịch sử để đồng bộ giữa các máy).
+  // deck: "toeic" | "fin" (Luyện đề) | "p2" (Nghe Part 2, do js/part2.js ghi)
+  // ---------------------------------------------------------
+  function noteMistake(deck, text, ok) {
+    if (!S.mistakes) S.mistakes = {};
+    const key = deck + "|" + String(text).slice(0, 120);
+    const m = S.mistakes[key];
+    if (!ok) S.mistakes[key] = { deck, n: (m ? m.n : 0) + 1, t: Date.now(), fixed: false };
+    else if (m && !m.fixed) S.mistakes[key] = Object.assign({}, m, { fixed: true, t: Date.now() });
+    else return;
+    save();
+  }
+  function mistakeQuestions(deck) {
+    const bank = deck === "toeic" ? TOEIC_QUIZ : QUIZ;
+    return bank.filter((q) => { const m = (S.mistakes || {})[deck + "|" + String(q.q).slice(0, 120)]; return m && !m.fixed; });
+  }
+  function renderMistakes() {
+    if (quizSession && !quizSession.finished && quizSession.fromMistakes) return drawQuizQuestion();
+    const sets = [
+      { deck: "toeic", name: "TOEIC Part 5", list: mistakeQuestions("toeic") },
+      { deck: "fin", name: "Tài chính nâng cao", list: mistakeQuestions("fin") }
+    ];
+    const p2 = openMistakes("p2");
+    const total = sets.reduce((a, x) => a + x.list.length, 0) + p2;
+    const fixed = Object.values(S.mistakes || {}).filter((m) => m.fixed).length;
+    const last = quizSession && quizSession.finished && quizSession.fromMistakes ? quizSession : null;
+    $("#view").innerHTML = `
+      <div class="page-head"><div><h1>Sổ câu sai</h1>
+        <p>Câu nào làm sai sẽ tự vào đây. Làm lại đúng thì câu đó được gạch khỏi sổ. Đây là cách nhanh nhất để tăng điểm: không làm câu mới, mà sửa đúng chỗ mình hay sai.</p></div></div>
+      ${last ? `<div class="explain" style="max-width:720px;margin-bottom:16px"><b>Vừa làm lại: đúng ${last.results.filter((r) => r.ok).length}/${last.results.length} câu.</b> Câu đúng đã được gạch khỏi sổ.</div>` : ""}
+      ${total ? `<div class="mk-list">
+        ${sets.filter((x) => x.list.length).map((x) => `
+          <div class="mk-row"><div><b>${x.name}</b><p class="muted small">${x.list.length} câu chờ làm lại</p></div>
+            <button class="btn btn-primary btn-sm" data-mk="${x.deck}">Làm lại ${Math.min(10, x.list.length)} câu</button></div>`).join("")}
+        ${p2 ? `<div class="mk-row"><div><b>Nghe Part 2</b><p class="muted small">${p2} câu chờ nghe lại</p></div>
+            <a class="btn btn-primary btn-sm" href="#part2/mistakes">Nghe lại</a></div>` : ""}
+      </div>` : `<div class="empty card"><h3>Sổ đang trống</h3><p>${fixed ? `Bạn đã sửa xong ${fixed} câu từng làm sai.` : "Chưa có câu sai nào."} Vào <a href="#quiz">Luyện đề</a> hoặc <a href="#part2">Nghe Part 2</a> để làm tiếp.</p></div>`}
+      ${sets.some((x) => x.list.length) ? `<h2 class="section-title">Các câu đang trong sổ</h2>
+        <div class="card list-card">${sets.flatMap((x) => x.list.map((q) => {
+          const m = S.mistakes[x.deck + "|" + String(q.q).slice(0, 120)];
+          return `<div class="word-row"><div><div class="small">${esc(q.q).replace(/_{3,}/g, "_____")}</div>
+            <div class="xs muted" style="margin-top:4px">${esc(q.type || x.name)} · sai ${m.n} lần</div></div></div>`;
+        })).join("")}</div>` : ""}`;
+    $$("[data-mk]").forEach((b) => (b.onclick = () => {
+      const list = shuffle(mistakeQuestions(b.dataset.mk)).slice(0, 10);
+      quizSession = { list, idx: 0, results: [], finished: false, fromMistakes: true };
+      drawQuizQuestion();
+    }));
   }
 
   // ---------------------------------------------------------
@@ -1454,6 +1555,7 @@
     save, bump, ensureDay,
     speakText, translateVi, openLookup, findWord, splitSentences,
     speak, highlight, topicOf, addWord, termToWord, schedule, DAY, termRegex, findTerm, stemCandidates, closeSheet,
+    dueWords, REVIEW_CAP, noteMistake, openMistakes, isLearned, updateBadges,
     refresh: () => route(),               // vẽ lại trang hiện tại (vd sau khi đồng bộ kéo dữ liệu mới về)
     data: { TOEIC, EXTRA, TERMS, TOEIC_ARTICLES, ARTICLES, STAGES, DECKS },
     registerPage(id, render) {

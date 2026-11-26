@@ -96,6 +96,12 @@
       const a = (local.quizStats || {})[k], b = (remote.quizStats || {})[k];
       m.quizStats[k] = !a ? b : !b ? a : (a.t >= b.t ? a : b); // lấy bản đã làm nhiều câu hơn
     });
+    // Sổ câu sai: mỗi câu lấy bản cập nhật sau cùng (sai thêm / đã sửa)
+    m.mistakes = {};
+    new Set(Object.keys(local.mistakes || {}).concat(Object.keys(remote.mistakes || {}))).forEach((k) => {
+      const a = (local.mistakes || {})[k], b = (remote.mistakes || {})[k];
+      m.mistakes[k] = !a ? b : !b ? a : ((a.t || 0) >= (b.t || 0) ? a : b);
+    });
     // Mục tiêu hôm nay: cùng ngày thì lấy số lớn hơn, khác ngày thì lấy ngày mới hơn
     const dl = local.daily || {}, dr = remote.daily || {};
     if (dl.date === dr.date) { m.daily = Object.assign({}, dr, dl); Object.keys(dr).forEach((k) => { if (typeof dr[k] === "number") m.daily[k] = Math.max(dr[k], dl[k] || 0); }); }

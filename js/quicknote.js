@@ -38,7 +38,7 @@
 
   function pageSource() {
     const p = (location.hash || "#today").slice(1).split("/")[0];
-    return { read: "Bài đọc", quiz: "Đề TOEIC", listen: "Luyện nghe", review: "Ôn tập", learn: "Học từ" }[p] || "Ghi nhanh";
+    return { read: "Bài đọc", quiz: "Đề TOEIC", listen: "Luyện nghe", part2: "Nghe Part 2", mistakes: "Sổ câu sai", review: "Ôn tập", learn: "Học từ" }[p] || "Ghi nhanh";
   }
 
   // ---------- 1. Nút nổi khi bôi đen ----------

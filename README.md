@@ -5,7 +5,12 @@ Web tự học tiếng Anh, đi từ **600 từ vựng TOEIC cốt lõi** lên t
 👉 Link web: https://huydd14.github.io/WordStreet/
 
 ## Tính năng chính
-- **Hôm nay (Dashboard)**: Kế hoạch học hằng ngày, streak, tiến độ theo chủ đề tài chính và bộ 600 từ TOEIC, lộ trình 12 tuần.
+Menu có 5 mục: **Hôm nay · Từ vựng · Đọc · Nghe · Luyện đề**. Mỗi mục có tab con ngay dưới thanh trên cùng (vd Từ vựng: Học bài mới · Ôn tập · Kho từ · Từ của tôi).
+
+- **Hôm nay (Dashboard)**: danh sách việc cần làm theo thứ tự (ôn thẻ → học từ mới → luyện đề → nghe → đọc), chuỗi ngày học, số từ **đã học / đã thuộc** (chỉ bấm "Lưu" thì chưa tính), tiến độ từng bộ từ, lộ trình 12 tuần.
+- **Chống dồn thẻ**: khi còn hơn 40 thẻ chưa ôn, web khuyên ôn trước rồi mới cho học bài mới (vẫn có nút "Vẫn học bài mới").
+- **Nghe Part 2 · Hỏi – đáp** (`#part2`): 59 câu B1/B2 giống đề thật. Máy đọc câu hỏi bằng 1 giọng, 3 đáp án bằng giọng khác, mặc định không hiện chữ. Trả lời xong mới hiện lời thoại, nghĩa và giải thích bẫy.
+- **Sổ câu sai** (`#mistakes`): câu sai ở Luyện đề và Part 2 tự vào sổ, làm lại đúng thì được gạch khỏi sổ. Có đồng bộ giữa các máy.
 - **Đọc hiểu**, gồm 2 bộ:
   - **TOEIC dễ → khó**: 12 bài kiểu Part 7 chia 3 bậc (B1 ~100 từ → B1+ ~170 từ → B2 ~250 từ): thông báo, quảng cáo, email, tin nhắn, memo, tin tuyển dụng, bài báo, thông cáo báo chí. App gợi ý bài nên đọc tiếp.
   - **Báo tài chính**: 12 bài chuẩn phong cách báo tài chính trình độ C1. Có thể **dán bài báo / transcript TikTok–YouTube** của riêng bạn.
@@ -32,6 +37,8 @@ css/style.css       ← giao diện (màu sắc nằm ở đầu file)
 js/app.js           ← code ứng dụng (lõi)
 js/listen.js        ← tính năng Luyện nghe (file riêng, mẫu để tự viết tính năng mới)
 js/learn.js         ← Học từ vựng theo bài (xem → trắc nghiệm → gõ lại)
+js/part2.js         ← Nghe TOEIC Part 2 (hỏi – đáp)
+data/toeic-part2.js ← 59 câu Part 2 (thêm câu mới theo hướng dẫn đầu file)
 js/sync.js          ← Đồng bộ giữa các máy qua GitHub Gist
 js/quicknote.js     ← Bôi đen để tra + nút ✎ Ghi từ
 data/phrases.js     ← 131 cụm từ: phrasal verbs, collocations, idioms
