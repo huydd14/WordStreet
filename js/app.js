@@ -126,6 +126,8 @@
     try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); }
     catch (e) { toast("Không lưu được dữ liệu — bộ nhớ trình duyệt có thể đã đầy."); }
     updateBadges();
+    // Báo cho js/sync.js biết dữ liệu vừa đổi (để hẹn đồng bộ lên GitHub)
+    if (window.WS && typeof window.WS.onSave === "function") window.WS.onSave();
   }
   function ensureDay() { if (S.daily.date !== todayStr()) { S.daily = freshDaily(); } }
   function touchStreak() {
@@ -190,7 +192,7 @@
   function newSrs() { return { reps: 0, interval: 0, ease: 2.5, due: Date.now() }; }
   function addWord(data) {
     const existing = findWord(data.term);
-    if (existing) { Object.assign(existing, data, { id: existing.id, srs: existing.srs, created: existing.created }); save(); return { word: existing, isNew: false }; }
+    if (existing) { Object.assign(existing, data, { id: existing.id, srs: existing.srs, created: existing.created, mod: Date.now() }); save(); return { word: existing, isNew: false }; }
     const w = Object.assign({ id: uid(), created: Date.now(), srs: newSrs() }, data);
     S.words.unshift(w);
     bump("newWords");
@@ -217,7 +219,8 @@
     const reps = srs.reps || 0, interval = srs.interval || 0;
     let ease = srs.ease || 2.5;
     const now = Date.now();
-    if (r === 1) return { reps: 0, interval: 0, ease: Math.max(1.3, ease - 0.2), due: now + 10 * 60000 };
+    // last = lúc ôn gần nhất (dùng khi đồng bộ 2 máy: bản nào ôn sau thì thắng)
+    if (r === 1) return { reps: 0, interval: 0, ease: Math.max(1.3, ease - 0.2), due: now + 10 * 60000, last: now };
     const base = Math.max(1, interval);
     const hard = reps === 0 ? 1 : Math.max(1, Math.round(interval * 1.2));
     const good = reps === 0 ? 2 : Math.max(hard + 1, Math.round(base * ease));
@@ -225,7 +228,7 @@
     const next = r === 2 ? hard : r === 3 ? good : easy;
     if (r === 2) ease = Math.max(1.3, ease - 0.15);
     if (r === 4) ease += 0.15;
-    return { reps: reps + 1, interval: next, ease, due: now + next * DAY };
+    return { reps: reps + 1, interval: next, ease, due: now + next * DAY, last: now };
   }
   function intervalLabel(srs, r) {
     const n = schedule(srs, r);
@@ -1439,6 +1442,7 @@
     save, bump, ensureDay,
     speakText, translateVi, openLookup, findWord, splitSentences,
     speak, highlight, topicOf, addWord, termToWord, schedule, DAY,
+    refresh: () => route(),               // vẽ lại trang hiện tại (vd sau khi đồng bộ kéo dữ liệu mới về)
     data: { TOEIC, EXTRA, TERMS, TOEIC_ARTICLES, ARTICLES, STAGES, DECKS },
     registerPage(id, render) {
       PAGES[id] = render;

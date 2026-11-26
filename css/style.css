@@ -154,6 +154,26 @@ p { margin: 0; }
   display: inline-grid; place-items: center;
 }
 
+/* Nút đồng bộ: chấm xám = chưa bật, xanh lá = đã đồng bộ, xanh dương nhấp nháy = đang đồng bộ, đỏ = lỗi */
+.sync-btn {
+  position: relative; width: 34px; height: 34px; flex-shrink: 0; display: grid; place-items: center;
+  border-radius: 9px; color: var(--muted); text-decoration: none; transition: background .15s, color .15s;
+}
+.sync-btn:hover { background: var(--surface-2); color: var(--ink); }
+.sync-btn svg { width: 20px; height: 20px; }
+.sync-dot { position: absolute; right: 5px; bottom: 6px; width: 9px; height: 9px; border-radius: 50%; background: var(--line-strong); box-shadow: 0 0 0 2px var(--surface); }
+.sync-btn[data-state="ok"] .sync-dot { background: var(--success); }
+.sync-btn[data-state="busy"] .sync-dot { background: var(--primary); animation: sync-pulse 1s infinite; }
+.sync-btn[data-state="error"] .sync-dot { background: var(--danger); }
+@keyframes sync-pulse { 50% { opacity: .3; } }
+.sync-grid h3 { font-size: 16px; }
+.sync-steps { margin: 0; padding-left: 20px; color: var(--ink-2); font-size: 14px; line-height: 1.7; }
+.sync-steps code, .sync-note code { font-family: var(--mono); font-size: 12.5px; background: var(--surface-2); padding: 1px 5px; border-radius: 5px; }
+.sync-note { margin-top: 14px; line-height: 1.65; color: var(--ink-2); }
+.sync-big-dot { width: 12px; height: 12px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; background: var(--success); }
+.sync-status[data-state="busy"] .sync-big-dot { background: var(--primary); animation: sync-pulse 1s infinite; }
+.sync-status[data-state="error"] .sync-big-dot { background: var(--danger); }
+
 .accent-toggle {
   display: inline-flex; padding: 3px; gap: 2px;
   background: var(--surface-2); border-radius: 9px;
@@ -669,7 +689,7 @@ mark.hl { background: transparent; color: var(--primary); font-weight: 700; }
   .nav a span.lbl { display: block; white-space: nowrap; }
   .nav a svg { width: 21px; height: 21px; box-sizing: content-box; }
   .nav .badge { position: absolute; top: 0; right: 14%; height: 16px; min-width: 16px; font-size: 10px; }
-  .accent-toggle { margin-left: auto; }
+  .sync-btn { margin-left: auto; }
   .view { padding: 20px 16px calc(var(--nav-h) + 40px); }
   .grid-2, .grid-3, .grid-4 { grid-template-columns: minmax(0, 1fr); }
   .grid-4.keep-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }

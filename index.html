@@ -29,6 +29,11 @@
       </span>
     </a>
     <nav class="nav" id="nav" aria-label="Điều hướng chính"></nav>
+    <!-- Nút đồng bộ giữa các máy (js/sync.js tô màu chấm trạng thái) -->
+    <a class="sync-btn" id="sync-btn" href="#sync" data-state="off" title="Đồng bộ giữa các máy" aria-label="Đồng bộ giữa các máy">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 8.5a4 4 0 0 1-.5 9.5z"/></svg>
+      <span class="sync-dot"></span>
+    </a>
     <div class="accent-toggle" role="group" aria-label="Giọng phát âm">
       <button id="accent-us" type="button">US</button>
       <button id="accent-uk" type="button">UK</button>
@@ -64,5 +69,6 @@
   <!-- Các tính năng tách riêng (dùng hàm chung qua window.WS) -->
   <script src="js/listen.js"></script>
   <script src="js/learn.js"></script>
+  <script src="js/sync.js"></script>
 </body>
 </html>

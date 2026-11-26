@@ -109,7 +109,7 @@
     w.done = true;
     const r = WS.addWord(WS.termToWord(w.t, w.t.example, "Học theo bài"));
     const interval = knownAlready ? 4 : 1;
-    r.word.srs = { reps: 1, interval, ease: Math.max(1.3, 2.5 - 0.1 * Math.min(w.miss, 4)), due: Date.now() + interval * WS.DAY };
+    r.word.srs = { reps: 1, interval, ease: Math.max(1.3, 2.5 - 0.1 * Math.min(w.miss, 4)), due: Date.now() + interval * WS.DAY, last: Date.now() };
     WS.save();
   }
 

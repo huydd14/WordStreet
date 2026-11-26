@@ -19,6 +19,7 @@ Web tự học tiếng Anh, đi từ **600 từ vựng TOEIC cốt lõi** lên t
 - **Luyện nghe (nghe chép chính tả)**: app đọc câu tiếng Anh (giọng US/UK, 3 tốc độ), bạn gõ lại, app chấm từng từ (đúng / sai chính tả nhẹ / thiếu), dịch nghĩa cả câu, bấm từ để lưu. 4 mức: câu ngắn B1 → câu vừa B2 → câu trong bài đọc TOEIC → báo tài chính. Có mục tiêu "10 câu/ngày" ở trang Hôm nay.
 - **Từ của tôi & Lưu nhanh**: Lưu nhanh từ gặp trên TikTok/Facebook kèm câu ngữ cảnh, lọc theo chủ đề/trạng thái nhớ, xuất/nhập file backup `.json`.
 - **Ôn tập ngắt quãng (SRS)**: 2 chế độ **Thẻ ghi nhớ (Flashcard)** và **Điền từ vào câu (Cloze)** giúp chống quên. Lật thẻ rồi tự chấm 4 mức: Chưa nhớ / Mang máng / Nhớ được / Quá dễ. Nhớ càng chắc thì lần ôn sau càng xa. Mỗi thẻ có chấm "mức nhớ", cuối lượt có bảng tổng kết.
+- **Đồng bộ giữa các máy** (nút ☁ trên thanh trên cùng, trang `#sync`): lưu dữ liệu học vào 1 gist riêng tư trên GitHub của bạn bằng mã truy cập chỉ có quyền `gist`. Mỗi máy tự kéo về, gộp 3 chiều (từ nào ôn gần đây hơn thì thắng, chuỗi ngày được nối lại) rồi đẩy lên. Tự đồng bộ khi mở web, khi quay lại tab và khoảng 15 giây sau mỗi lần học.
 - **Sao lưu ra file / Khôi phục từ file** (trang Từ của tôi): dữ liệu học chỉ nằm trong trình duyệt của máy đang dùng. Nút "Sao lưu" tải về 1 file `.json` chứa toàn bộ từ và tiến độ. Khi đổi máy hoặc lỡ xóa dữ liệu trình duyệt, bấm "Khôi phục" rồi chọn file đó.
 - **Luyện đề**: 60 câu **TOEIC Part 5 cơ bản** (B1/B2: ngữ pháp, từ loại, từ vựng công sở, câu dễ ra trước) + 42 câu **tài chính nâng cao** (Part 5, collocation, C1 paraphrase). Giải thích chi tiết bằng tiếng Việt.
 
@@ -29,6 +30,7 @@ css/style.css       ← giao diện (màu sắc nằm ở đầu file)
 js/app.js           ← code ứng dụng (lõi)
 js/listen.js        ← tính năng Luyện nghe (file riêng, mẫu để tự viết tính năng mới)
 js/learn.js         ← Học từ vựng theo bài (xem → trắc nghiệm → gõ lại)
+js/sync.js          ← Đồng bộ giữa các máy qua GitHub Gist
 data/config.js      ← tên web, mục tiêu mỗi ngày, danh sách chủ đề
 data/terms.js       ← 150 thuật ngữ tài chính
 data/toeic600-*.js  ← 600 từ vựng TOEIC (3 file)
