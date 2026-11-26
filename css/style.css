@@ -368,6 +368,61 @@ p { margin: 0; }
 .p2-q { font-family: var(--serif); font-size: 19px; line-height: 1.45; }
 .p2-speed { margin-bottom: 14px; }
 
+/* Gợi ý làm bài kiểm tra đầu vào (trang Hôm nay) */
+.callout {
+  display: block; margin-top: 18px; padding: 14px 18px; border-radius: var(--radius);
+  background: var(--gold-soft); color: var(--ink-2); text-decoration: none; font-size: 14px; border: 1px solid transparent;
+}
+.callout:hover { color: var(--ink); border-color: var(--gold); }
+.callout b { color: var(--ink); }
+.callout-go { color: var(--gold); font-weight: 600; white-space: nowrap; }
+a.plain { color: inherit; text-decoration: none; }
+
+/* Part 3–4 */
+.p34-title { font-family: var(--serif); font-size: 22px; font-weight: 600; margin-bottom: 4px; }
+.p34-row { color: inherit; text-decoration: none; }
+.p34-row:hover { background: var(--surface-2); color: inherit; }
+.p34 .q { padding: 14px 0; }
+.transcript { margin-top: 12px; padding: 14px 16px; border-radius: var(--radius-sm); background: var(--paper); border: 1px solid var(--line); font-family: var(--serif); font-size: 16px; line-height: 1.65; }
+.transcript p { margin-bottom: 8px; }
+.transcript b { font-family: var(--font); font-size: 13px; color: var(--primary); }
+
+/* Part 6 */
+.p6-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.p6-text { padding: 30px 34px; max-width: none; position: sticky; top: 76px; }
+.p6-text .body p { font-size: 17px; line-height: 1.7; margin-bottom: 14px; }
+.p6-blank { display: inline-block; min-width: 64px; padding: 0 6px; border-bottom: 2px solid var(--primary); color: var(--primary); font-family: var(--font); font-size: 14px; font-weight: 600; text-align: center; }
+.p6-fill { background: linear-gradient(transparent 56%, var(--marker) 56%); font-weight: 600; }
+.p6-qs .q:first-child { padding-top: 0; }
+
+/* Thi thử */
+.t-wrap { max-width: 760px; margin: 0 auto; }
+.t-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.t-timer { font-family: var(--mono); font-size: 16px; font-weight: 600; padding: 4px 10px; border-radius: 8px; background: var(--surface-2); font-variant-numeric: tabular-nums; }
+.t-timer.warn { background: var(--danger-soft); color: var(--danger); }
+.t-card { padding: 24px 26px; }
+.t-part { font-size: 12.5px; font-weight: 600; color: var(--primary); margin-bottom: 4px; }
+.t-passage { margin: 12px 0 6px; padding: 18px 20px; border-radius: var(--radius-sm); background: var(--paper); border: 1px solid var(--line); font-family: var(--serif); font-size: 16px; line-height: 1.65; }
+.t-passage p { margin-top: 8px; }
+.opt.sel { border-color: var(--primary); background: var(--primary-soft); }
+.opt.sel .letter { background: var(--primary); color: var(--primary-ink); }
+.t-score { font-family: var(--serif); font-size: 64px; font-weight: 600; line-height: 1.1; margin-top: 6px; }
+.t-score small { font-size: 22px; color: var(--muted); font-weight: 400; }
+.t-split { display: flex; justify-content: center; gap: 0; margin-top: 10px; }
+.t-split > div { display: grid; padding: 0 26px; }
+.t-split > div + div { border-left: 1px solid var(--line); }
+.t-split b { font-family: var(--serif); font-size: 26px; }
+.t-split span { font-size: 12.5px; color: var(--muted); }
+.t-list { margin: 10px 0 18px; padding-left: 20px; color: var(--ink-2); font-size: 14px; line-height: 1.7; }
+.t-inline { font-family: var(--serif); font-size: 17px; color: var(--ink); }
+.t-chart { display: flex; align-items: flex-end; gap: 10px; height: 170px; padding-top: 6px; }
+.t-col { flex: 1; max-width: 46px; height: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.t-val { font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.t-barwrap { position: relative; flex: 1; width: 100%; background: var(--surface-2); border-radius: 4px 4px 0 0; }
+.t-bar { position: absolute; left: 0; right: 0; bottom: 0; background: var(--primary); border-radius: 4px 4px 0 0; }
+.t-goal { position: absolute; left: -3px; right: -3px; height: 0; border-top: 1.5px dashed var(--gold); }
+.t-date { font-size: 11px; color: var(--muted); }
+
 .roadmap { counter-reset: step; display: grid; gap: 10px; }
 .roadmap ol { margin: 0; padding: 0; display: grid; gap: 16px; position: relative; }
 .roadmap li { list-style: none; display: grid; grid-template-columns: 32px 1fr; gap: 14px; align-items: start; position: relative; }
@@ -747,6 +802,11 @@ mark.hl { background: linear-gradient(transparent 56%, var(--marker) 56%); color
   .subnav-in { padding: 0 16px; gap: 20px; }
   .nav a.active::after { display: none; }
   .p2-q { font-size: 17px; }
+  .p6-grid { grid-template-columns: minmax(0, 1fr); }
+  .p6-text { position: static; padding: 22px 18px; }
+  .t-card { padding: 20px 16px; }
+  .t-score { font-size: 52px; }
+  .t-split > div { padding: 0 16px; }
   .reader { padding: 26px 20px; border-radius: 14px; }
   .reader h1 { font-size: 26px; }
   .reader .body p { font-size: 17.5px; line-height: 1.72; }

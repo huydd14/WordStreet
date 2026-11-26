@@ -103,16 +103,19 @@
       { id: "words", label: "Từ của tôi" }
     ],
     listen: [
-      { id: "listen", label: "Nghe chép chính tả" },
-      { id: "part2", label: "Hỏi – đáp (Part 2)" }
+      { id: "part2", label: "Hỏi – đáp (Part 2)" },
+      { id: "part34", label: "Hội thoại & bài nói (Part 3–4)" },
+      { id: "listen", label: "Nghe chép chính tả" }
     ],
     quiz: [
-      { id: "quiz", label: "Luyện đề" },
+      { id: "quiz", label: "Part 5" },
+      { id: "part6", label: "Part 6" },
+      { id: "test", label: "Thi thử" },
       { id: "mistakes", label: "Sổ câu sai", badge: "mistakes" }
     ]
   };
   // trang → mục menu chứa nó
-  const GROUP_OF = { learn: "vocab", review: "vocab", glossary: "vocab", words: "vocab", listen: "listen", part2: "listen", quiz: "quiz", mistakes: "quiz", read: "read", today: "today" };
+  const GROUP_OF = { learn: "vocab", review: "vocab", glossary: "vocab", words: "vocab", listen: "listen", part2: "listen", part34: "listen", quiz: "quiz", part6: "quiz", test: "quiz", mistakes: "quiz", read: "read", today: "today" };
   // Còn quá nhiều thẻ chưa ôn thì nên ôn trước rồi mới học từ mới (tránh dồn thẻ)
   const REVIEW_CAP = 40;
 
@@ -309,6 +312,51 @@
     return true;
   }
 
+  // Đọc nhiều câu liên tiếp bằng nhiều giọng (dùng cho Part 2, Part 3–4, thi thử).
+  // parts: [{ text, who: "M" | "W" | "N" }]   M = nam, W = nữ, N = người dẫn (giọng mặc định)
+  // Trả về hàm stop() để dừng giữa chừng.
+  const FEMALE = /zira|aria|jenny|susan|hazel|libby|sonia|samantha|karen|moira|tessa|victoria|fiona|serena|female|michelle|emma|natasha|clara|sara|ava|allison|google us english|google uk english female/i;
+  const MALE = /david|mark|guy|george|ryan|daniel|alex|fred|oliver|male|christopher|eric|roger|thomas|william|brian|andrew|google uk english male/i;
+  function voiceFor(who) {
+    if (!("speechSynthesis" in window)) return null;
+    const all = speechSynthesis.getVoices().filter((v) => /^en[-_]/i.test(v.lang));
+    const mine = all.filter((v) => v.lang.replace("_", "-") === S.accent);
+    const pool = mine.length ? mine : all;
+    const female = pool.filter((v) => FEMALE.test(v.name));
+    const male = pool.filter((v) => MALE.test(v.name) && !FEMALE.test(v.name));
+    if (who === "W") return female[0] || pool[0] || null;
+    if (who === "M") return male[0] || pool.find((v) => !FEMALE.test(v.name)) || pool[1] || pool[0] || null;
+    if (who === "M2") return male[1] || male[0] || pool[0] || null;
+    return pool[0] || null;
+  }
+  let seqToken = 0;
+  function stopSeq() { seqToken++; if ("speechSynthesis" in window) speechSynthesis.cancel(); }
+  function speakSeq(parts, opts) {
+    opts = opts || {};
+    if (!("speechSynthesis" in window)) { toast("Trình duyệt không đọc được. Hãy dùng Chrome hoặc Edge."); return stopSeq; }
+    stopSeq();
+    const token = seqToken;
+    let i = 0;
+    const next = () => {
+      if (token !== seqToken) return;
+      if (i >= parts.length) { if (opts.onDone) opts.onDone(); return; }
+      const p = parts[i++];
+      const u = new SpeechSynthesisUtterance(p.text);
+      u.lang = S.accent; u.rate = opts.rate || 0.95;
+      const v = voiceFor(p.who);
+      if (v) u.voice = v;
+      // Không tìm được giọng nam/nữ riêng thì đổi cao độ cho dễ phân biệt
+      const vq = voiceFor("N");
+      if (p.who === "M" && (!v || v === vq) && voiceFor("W") === vq) u.pitch = 0.75;
+      if (p.pitch) u.pitch = p.pitch;
+      u.onend = () => setTimeout(next, p.gap != null ? p.gap : 450);
+      u.onerror = () => setTimeout(next, 100);
+      speechSynthesis.speak(u);
+    };
+    next();
+    return stopSeq;
+  }
+
   async function dictLookup(word) {
     const key = word.toLowerCase();
     const cache = loadCache();
@@ -472,6 +520,7 @@
     // Gợi ý: đọc hết bài TOEIC theo thứ tự trước, rồi mới tới bài báo tài chính
     const nextArticle = BUILTIN_ARTICLES.find((a) => !S.articlesDone[a.id]) || BUILTIN_ARTICLES[0];
     const tooMany = due > REVIEW_CAP;
+    const lastTest = (S.tests || [])[(S.tests || []).length - 1];
 
     // Thứ tự = thứ tự nên làm: ôn thẻ cũ trước, rồi mới học từ mới
     const plan = [
@@ -511,9 +560,10 @@
           <div><dt>Đã thuộc</dt><dd>${mastered}</dd></div>
           <div><dt>Thẻ chờ ôn</dt><dd class="${tooMany ? "warn" : ""}">${due}</dd></div>
           <div><dt>Câu sai chờ làm lại</dt><dd>${wrongOpen}</dd></div>
-          <div><dt>Đúng khi luyện đề</dt><dd>${acc}</dd></div>
+          ${lastTest ? `<div><dt>Điểm thi thử gần nhất</dt><dd><a href="#test" class="plain">${lastTest.total}</a></dd></div>` : `<div><dt>Đúng khi luyện đề</dt><dd>${acc}</dd></div>`}
         </dl>
       </section>
+      ${lastTest ? "" : `<a class="callout" href="#test"><b>Chưa biết mình đang khoảng bao nhiêu điểm?</b> Làm bài kiểm tra đầu vào 25 phút (đủ Nghe và Đọc), web sẽ gợi ý nên học từ mức nào. <span class="callout-go">Làm ngay →</span></a>`}
 
       <h2 class="section-title">Kế hoạch hôm nay</h2>
       <ol class="plan">
@@ -1493,8 +1543,8 @@
       { deck: "toeic", name: "TOEIC Part 5", list: mistakeQuestions("toeic") },
       { deck: "fin", name: "Tài chính nâng cao", list: mistakeQuestions("fin") }
     ];
-    const p2 = openMistakes("p2");
-    const total = sets.reduce((a, x) => a + x.list.length, 0) + p2;
+    const p2 = openMistakes("p2"), p34 = openMistakes("p34"), p6 = openMistakes("p6");
+    const total = sets.reduce((a, x) => a + x.list.length, 0) + p2 + p34 + p6;
     const fixed = Object.values(S.mistakes || {}).filter((m) => m.fixed).length;
     const last = quizSession && quizSession.finished && quizSession.fromMistakes ? quizSession : null;
     $("#view").innerHTML = `
@@ -1507,6 +1557,10 @@
             <button class="btn btn-primary btn-sm" data-mk="${x.deck}">Làm lại ${Math.min(10, x.list.length)} câu</button></div>`).join("")}
         ${p2 ? `<div class="mk-row"><div><b>Nghe Part 2</b><p class="muted small">${p2} câu chờ nghe lại</p></div>
             <a class="btn btn-primary btn-sm" href="#part2/mistakes">Nghe lại</a></div>` : ""}
+        ${p34 ? `<div class="mk-row"><div><b>Nghe Part 3–4</b><p class="muted small">${p34} câu chờ làm lại</p></div>
+            <a class="btn btn-primary btn-sm" href="#part34/mistakes">Làm lại</a></div>` : ""}
+        ${p6 ? `<div class="mk-row"><div><b>Part 6 · Điền đoạn văn</b><p class="muted small">${p6} chỗ trống chờ làm lại</p></div>
+            <a class="btn btn-primary btn-sm" href="#part6/mistakes">Làm lại</a></div>` : ""}
       </div>` : `<div class="empty card"><h3>Sổ đang trống</h3><p>${fixed ? `Bạn đã sửa xong ${fixed} câu từng làm sai.` : "Chưa có câu sai nào."} Vào <a href="#quiz">Luyện đề</a> hoặc <a href="#part2">Nghe Part 2</a> để làm tiếp.</p></div>`}
       ${sets.some((x) => x.list.length) ? `<h2 class="section-title">Các câu đang trong sổ</h2>
         <div class="card list-card">${sets.flatMap((x) => x.list.map((q) => {
@@ -1555,7 +1609,8 @@
     save, bump, ensureDay,
     speakText, translateVi, openLookup, findWord, splitSentences,
     speak, highlight, topicOf, addWord, termToWord, schedule, DAY, termRegex, findTerm, stemCandidates, closeSheet,
-    dueWords, REVIEW_CAP, noteMistake, openMistakes, isLearned, updateBadges,
+    dueWords, REVIEW_CAP, noteMistake, openMistakes, isLearned, updateBadges, speakSeq, stopSeq, questionHtml, bindQuestions,
+    get TOEIC_QUIZ() { return TOEIC_QUIZ; },
     refresh: () => route(),               // vẽ lại trang hiện tại (vd sau khi đồng bộ kéo dữ liệu mới về)
     data: { TOEIC, EXTRA, TERMS, TOEIC_ARTICLES, ARTICLES, STAGES, DECKS },
     registerPage(id, render) {

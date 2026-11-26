@@ -102,6 +102,18 @@
       const a = (local.mistakes || {})[k], b = (remote.mistakes || {})[k];
       m.mistakes[k] = !a ? b : !b ? a : ((a.t || 0) >= (b.t || 0) ? a : b);
     });
+    // Các lần thi thử: gộp 2 bên theo thời điểm thi (không trùng lặp)
+    if (local.tests || remote.tests) {
+      const byT = {}; (remote.tests || []).concat(local.tests || []).forEach((x) => (byT[x.t] = x));
+      m.tests = Object.values(byT).sort((a, b) => a.t - b.t).slice(-30);
+    }
+    // Bài Part 3–4 / Part 6 đã làm: lấy điểm cao hơn
+    ["p34", "p6"].forEach((k) => {
+      if (!local[k] && !remote[k]) return;
+      const a = (local[k] || {}).done || {}, b = (remote[k] || {}).done || {}, done = {};
+      new Set(Object.keys(a).concat(Object.keys(b))).forEach((id) => (done[id] = Math.max(a[id] || 0, b[id] || 0)));
+      m[k] = Object.assign({}, clone(remote[k] || {}), clone(local[k] || {}), { done });
+    });
     // Mục tiêu hôm nay: cùng ngày thì lấy số lớn hơn, khác ngày thì lấy ngày mới hơn
     const dl = local.daily || {}, dr = remote.daily || {};
     if (dl.date === dr.date) { m.daily = Object.assign({}, dr, dl); Object.keys(dr).forEach((k) => { if (typeof dr[k] === "number") m.daily[k] = Math.max(dr[k], dl[k] || 0); }); }

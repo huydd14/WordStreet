@@ -10,7 +10,12 @@ Menu có 5 mục: **Hôm nay · Từ vựng · Đọc · Nghe · Luyện đề**
 - **Hôm nay (Dashboard)**: danh sách việc cần làm theo thứ tự (ôn thẻ → học từ mới → luyện đề → nghe → đọc), chuỗi ngày học, số từ **đã học / đã thuộc** (chỉ bấm "Lưu" thì chưa tính), tiến độ từng bộ từ, lộ trình 12 tuần.
 - **Chống dồn thẻ**: khi còn hơn 40 thẻ chưa ôn, web khuyên ôn trước rồi mới cho học bài mới (vẫn có nút "Vẫn học bài mới").
 - **Nghe Part 2 · Hỏi – đáp** (`#part2`): 59 câu B1/B2 giống đề thật. Máy đọc câu hỏi bằng 1 giọng, 3 đáp án bằng giọng khác, mặc định không hiện chữ. Trả lời xong mới hiện lời thoại, nghĩa và giải thích bẫy.
-- **Sổ câu sai** (`#mistakes`): câu sai ở Luyện đề và Part 2 tự vào sổ, làm lại đúng thì được gạch khỏi sổ. Có đồng bộ giữa các máy.
+- **Nghe Part 3–4** (`#part34`): 8 hội thoại + 6 bài nói, mỗi bài 3 câu hỏi in sẵn. Hội thoại đọc bằng giọng nam/nữ khác nhau, làm xong mở được lời thoại để dò lại.
+- **Part 6 · Điền đoạn văn** (`#part6`): 6 đoạn (email, thông báo, quảng cáo, thư…), mỗi đoạn 4 chỗ trống có 1 câu chọn cả câu. Làm tới đâu đoạn văn tự điền đáp án tới đó.
+- **Part 5**: 120 câu (B1/B2).
+- **Thi thử mini & kiểm tra đầu vào** (`#test`): 29 câu trong 25 phút (Nghe Part 2–4, Đọc Part 5–7), chấm xong quy ra điểm Nghe/Đọc trên thang 495, gợi ý nên học tiếp phần nào, vẽ biểu đồ các lần thi so với mốc 800. Lần đầu dùng làm kiểm tra đầu vào.
+- **Sổ câu sai** (`#mistakes`): câu sai ở Part 2, 3–4, 5, 6 và thi thử tự vào sổ, làm lại đúng thì được gạch khỏi sổ. Có đồng bộ giữa các máy.
+- **Cài như app trên điện thoại**: mở web bằng Chrome (Android) → menu ⋮ → "Thêm vào màn hình chính"; iPhone mở bằng Safari → nút Chia sẻ → "Thêm vào MH chính". Có biểu tượng riêng, mở toàn màn hình, mất mạng vẫn học được (trừ tra từ, dịch, đồng bộ).
 - **Đọc hiểu**, gồm 2 bộ:
   - **TOEIC dễ → khó**: 12 bài kiểu Part 7 chia 3 bậc (B1 ~100 từ → B1+ ~170 từ → B2 ~250 từ): thông báo, quảng cáo, email, tin nhắn, memo, tin tuyển dụng, bài báo, thông cáo báo chí. App gợi ý bài nên đọc tiếp.
   - **Báo tài chính**: 12 bài chuẩn phong cách báo tài chính trình độ C1. Có thể **dán bài báo / transcript TikTok–YouTube** của riêng bạn.
@@ -38,7 +43,14 @@ js/app.js           ← code ứng dụng (lõi)
 js/listen.js        ← tính năng Luyện nghe (file riêng, mẫu để tự viết tính năng mới)
 js/learn.js         ← Học từ vựng theo bài (xem → trắc nghiệm → gõ lại)
 js/part2.js         ← Nghe TOEIC Part 2 (hỏi – đáp)
+js/part34.js        ← Nghe Part 3–4 (hội thoại & bài nói)
+js/part6.js         ← Part 6 (điền đoạn văn)
+js/test.js          ← Thi thử mini + điểm ước lượng
+sw.js, manifest.webmanifest, icons/ ← cài web như app, chạy khi mất mạng
 data/toeic-part2.js ← 59 câu Part 2 (thêm câu mới theo hướng dẫn đầu file)
+data/toeic-part34.js ← 14 bài Part 3–4
+data/toeic-part6.js ← 6 đoạn Part 6
+data/toeic-quiz-2.js ← 60 câu Part 5 bổ sung
 js/sync.js          ← Đồng bộ giữa các máy qua GitHub Gist
 js/quicknote.js     ← Bôi đen để tra + nút ✎ Ghi từ
 data/phrases.js     ← 131 cụm từ: phrasal verbs, collocations, idioms

@@ -27,42 +27,11 @@
   const keyOf = (it) => "p2|" + it.q.slice(0, 120);
   const isOpenMistake = (it) => { const m = (WS.S.mistakes || {})[keyOf(it)]; return m && !m.fixed; };
 
-  // ---------- Giọng đọc: câu hỏi 1 giọng, đáp án 1 giọng khác ----------
-  function voicePair() {
-    if (!window.speechSynthesis) return [null, null];
-    const all = speechSynthesis.getVoices().filter((v) => /^en[-_]/i.test(v.lang));
-    const acc = WS.S.accent || "en-US";
-    const same = all.filter((v) => v.lang.replace("_", "-") === acc);
-    const pool = same.length ? same : all;
-    const q = pool[0] || null;
-    const a = pool.find((v) => v !== q) || all.find((v) => v !== q) || q;
-    return [q, a];
-  }
-  let playToken = 0;
-  function stop() { playToken++; if (window.speechSynthesis) speechSynthesis.cancel(); }
+  // ---------- Giọng đọc: câu hỏi giọng nữ, đáp án giọng nam (WS.speakSeq trong app.js) ----------
+  const stop = () => WS.stopSeq();
   function play(item, order, onDone) {
-    if (!("speechSynthesis" in window)) { toast("Trình duyệt không đọc được. Hãy dùng Chrome hoặc Edge."); return; }
-    stop();
-    const token = playToken;
-    const [vq, va] = voicePair();
-    const rate = SPEEDS[st().speed].rate;
-    const parts = [{ text: item.q, v: vq, pitch: 1 }].concat(order.map((oi, k) => ({
-      text: "ABC"[k] + ". " + item.opts[oi], v: va, pitch: va === vq ? 0.8 : 1   // chỉ có 1 giọng thì đổi cao độ cho dễ phân biệt
-    })));
-    let i = 0;
-    const next = () => {
-      if (token !== playToken) return;
-      if (i >= parts.length) { if (onDone) onDone(); return; }
-      const p = parts[i++];
-      const u = new SpeechSynthesisUtterance(p.text);
-      u.lang = WS.S.accent || "en-US"; u.rate = rate; u.pitch = p.pitch;
-      if (p.v) u.voice = p.v;
-      // Nghỉ giữa câu hỏi và các đáp án giống đề thật
-      u.onend = () => setTimeout(next, i === 1 ? 700 : 450);
-      u.onerror = () => setTimeout(next, 100);
-      speechSynthesis.speak(u);
-    };
-    next();
+    const parts = [{ text: item.q, who: "W", gap: 800 }].concat(order.map((oi, k) => ({ text: "ABC"[k] + ". " + item.opts[oi], who: "M" })));
+    WS.speakSeq(parts, { rate: SPEEDS[st().speed].rate, onDone });
   }
 
   // ---------- Phiên luyện ----------
