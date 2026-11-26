@@ -56,7 +56,9 @@
   /* Chữ */
   --font: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
   /* Literata: font được thiết kế riêng cho việc đọc dài trên màn hình */
-  --serif: "Literata", Georgia, "Times New Roman", serif;
+  /* Font dự phòng phải có đủ dấu tiếng Việt (ề, ế, ắ…): Cambria / Times New Roman có sẵn trên Windows.
+     KHÔNG dùng Georgia: thiếu chữ Việt dựng sẵn → dấu bị tách rời ("chiê`u") khi mạng chặn Google Fonts. */
+  --serif: "Literata", "Noto Serif", Cambria, "Times New Roman", "Times", serif;
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
 
   --nav-h: 64px;

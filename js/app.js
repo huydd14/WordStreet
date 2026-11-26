@@ -116,6 +116,14 @@
   };
   // trang → mục menu chứa nó
   const GROUP_OF = { learn: "vocab", review: "vocab", glossary: "vocab", words: "vocab", listen: "listen", part2: "listen", part34: "listen", quiz: "quiz", part6: "quiz", test: "quiz", mistakes: "quiz", read: "read", today: "today" };
+  // Trang nằm ở file riêng (đăng ký qua WS.registerPage) → tên file, để báo lỗi rõ nếu file không chạy
+  const MODULE_FILE = { learn: "js/learn.js", listen: "js/listen.js", part2: "js/part2.js", part34: "js/part34.js", part6: "js/part6.js", test: "js/test.js", sync: "js/sync.js" };
+  let pageLoaded = false;
+  window.addEventListener("load", () => {
+    pageLoaded = true;
+    const p = (location.hash || "").slice(1).split("/")[0];
+    if (MODULE_FILE[p] && !PAGES[p]) route();
+  });
   // Còn quá nhiều thẻ chưa ôn thì nên ôn trước rồi mới học từ mới (tránh dồn thẻ)
   const REVIEW_CAP = 40;
 
@@ -477,7 +485,7 @@
     const hash = (location.hash || "#today").slice(1);
     const [page, arg] = hash.split("/");
     const view = $("#view");
-    const group = GROUP_OF[page] || (PAGES[page] ? page : "today");
+    const group = GROUP_OF[page] || (PAGES[page] || MODULE_FILE[page] ? page : "today");
     $$("#nav a").forEach((a) => a.classList.toggle("active", a.dataset.nav === group));
     renderSubnav(page);
     view.classList.remove("fade-in"); void view.offsetWidth; view.classList.add("fade-in");
@@ -492,7 +500,16 @@
       case "mistakes": renderMistakes(); break;
       default:
         // Trang do file khác đăng ký (vd js/listen.js) qua WS.registerPage
-        if (PAGES[page]) PAGES[page](arg); else renderToday();
+        if (PAGES[page]) PAGES[page](arg);
+        else if (MODULE_FILE[page]) {
+          // File tính năng chưa chạy: đang tải thì chờ, tải xong mà vẫn không có thì báo rõ (không im lặng hiện trang Hôm nay)
+          view.innerHTML = pageLoaded
+            ? `<div class="card empty"><h3>Trang này chưa tải được</h3>
+                <p>File <code>${MODULE_FILE[page]}</code> không chạy, có thể do mạng chặn hoặc trình duyệt còn giữ bản cũ.</p>
+                <div class="row" style="justify-content:center;margin-top:14px"><button class="btn btn-primary" onclick="location.reload()">Tải lại trang</button><a class="btn" href="#today">Về Hôm nay</a></div>
+                <p class="xs muted" style="margin-top:12px">Vẫn bị thì nhấn <b>Ctrl + Shift + R</b> để tải lại sạch.</p></div>`
+            : `<div class="loading" style="justify-content:center;padding:40px"><span class="spin"></span> Đang tải…</div>`;
+        } else renderToday();
     }
     renderBanner();
     window.scrollTo(0, 0);

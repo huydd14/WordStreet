@@ -7,7 +7,7 @@
    - Mất mạng: lấy bản đã lưu ra dùng.
    Chỉ lưu file của chính web này. Tra từ, dịch, đồng bộ GitHub vẫn cần mạng.
    ============================================================ */
-const CACHE = "wordstreet-v1";
+const CACHE = "wordstreet-v2";
 const SHELL = [
   "./", "index.html", "css/style.css", "manifest.webmanifest",
   "js/app.js", "js/listen.js", "js/learn.js", "js/part2.js", "js/part34.js", "js/part6.js", "js/test.js", "js/sync.js", "js/quicknote.js",
@@ -27,12 +27,15 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET" || url.origin !== location.origin) return; // API bên ngoài: để trình duyệt tự xử lý
+  const isPage = e.request.mode === "navigate";
   e.respondWith(
     fetch(e.request)
       .then((res) => {
         if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(e.request, copy)); }
         return res;
       })
-      .catch(() => caches.match(e.request, { ignoreSearch: true }).then((hit) => hit || caches.match("index.html")))
+      // Mất mạng: lấy bản đã lưu. CHỈ trả trang chủ khi đang mở trang (không bao giờ trả HTML thay cho file .js/.css,
+      // vì như vậy trình duyệt sẽ chạy nhầm HTML như JavaScript → các tính năng không chạy)
+      .catch(() => caches.match(e.request, { ignoreSearch: true }).then((hit) => hit || (isPage ? caches.match("index.html") : Response.error())))
   );
 });
