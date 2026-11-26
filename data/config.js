@@ -61,3 +61,10 @@ window.WS_TOEIC_EXTRA_TOPICS = [
   { id: "x-travel",   name: "Du lịch & đi lại",          en: "Travel",                   color: "#2f8fb0" },
   { id: "x-arts",     name: "Phim, kịch & âm nhạc",      en: "Entertainment",            color: "#b85c7a" }
 ];
+
+// Chủ đề bộ CỤM TỪ (dữ liệu trong data/phrases.js)
+window.WS_PHRASE_TOPICS = [
+  { id: "p-phrasal", name: "Phrasal verbs",            en: "Phrasal Verbs",            color: "#4a78b5" },
+  { id: "p-colloc",  name: "Collocations",             en: "Collocations",             color: "#3f8f8a" },
+  { id: "p-idiom",   name: "Idioms công sở",           en: "Business Idioms",          color: "#b8783f" }
+];

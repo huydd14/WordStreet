@@ -32,8 +32,11 @@
   // Bộ từ vựng mở rộng (Part 5&6 + 600 từ theo chủ đề bạn sưu tầm)
   const EXTRA_TOPICS = window.WS_TOEIC_EXTRA_TOPICS || [];
   const EXTRA = (window.WS_TOEIC_EXTRA || []).map((t) => Object.assign({ level: "B1", en: "", collocations: "", synonyms: "", note: "" }, t));
-  const ALL_TOPICS = TOPICS.concat(TOEIC_TOPICS, EXTRA_TOPICS);
-  const ALL_TERMS = TERMS.concat(TOEIC, EXTRA);
+  // Bộ cụm từ: phrasal verbs, collocations, idioms
+  const PHRASE_TOPICS = window.WS_PHRASE_TOPICS || [];
+  const PHRASES = (window.WS_PHRASES || []).map((t) => Object.assign({ level: "B1", ipa: "", en: "", collocations: "", synonyms: "", note: "" }, t));
+  const ALL_TOPICS = TOPICS.concat(TOEIC_TOPICS, EXTRA_TOPICS, PHRASE_TOPICS);
+  const ALL_TERMS = TERMS.concat(TOEIC, EXTRA, PHRASES);
 
   // Các "bộ từ" trong mục Từ vựng (thứ tự = thứ tự nên học)
   const DECKS = {
@@ -41,6 +44,8 @@
              desc: "từ vựng cốt lõi hay gặp trong đề TOEIC (văn phòng, nhân sự, du lịch, mua hàng…). Nên học hết B1 trước rồi lên B2." },
     extra: { id: "extra", label: "TOEIC mở rộng",       terms: EXTRA, topics: EXTRA_TOPICS, levels: ["B1", "B2", "C1"],
              desc: "từ bổ sung: cụm từ Part 5&6 thiết yếu và bộ từ theo chủ đề bạn sưu tầm (đã bỏ từ trùng, nghĩa được viết lại cho đúng ngữ cảnh TOEIC)." },
+    phr:   { id: "phr",   label: "Cụm từ & Idioms",     terms: PHRASES, topics: PHRASE_TOPICS, levels: ["B1", "B2", "C1"],
+             desc: "cụm từ hay gặp trong TOEIC: phrasal verbs, collocations (make a decision, meet a deadline…) và idioms công sở. Học cả cụm, đừng tách từng chữ." },
     fin:   { id: "fin",   label: "Thuật ngữ tài chính", terms: TERMS, topics: TOPICS, levels: ["B2", "C1", "TOEIC"],
              desc: "thuật ngữ chọn lọc cho báo chí tài chính, TOEIC 800+ và C1." }
   };
@@ -921,12 +926,21 @@
     };
     setTimeout(() => { if (!src.vi) $("#lk-vi").focus(); }, 250);
   }
+  // Regex tìm 1 từ / cụm từ trong câu, cho phép chữ đầu được chia:
+  // "carry out" khớp "carried out", "carrying out". Các chữ sau giữ nguyên (chữ cuối được thêm s/es).
+  function termRegex(term) {
+    const ws = String(term || "").toLowerCase().trim().split(/\s+/);
+    const first = ws[0].length > 3 ? ws[0].replace(/(e|y)$/, "") : ws[0];
+    // Mạo từ/sở hữu thay được cho nhau: "meet a deadline" cũng khớp "meet the deadline"
+    const DET = "(?:a|an|the|this|that|these|those|your|my|our|their|his|her|its)";
+    const isDet = (w) => new RegExp("^" + DET + "$").test(w);
+    const parts = [reEsc(first) + "[a-z]*"].concat(ws.slice(1).map((w, i, arr) => isDet(w) ? DET : reEsc(w) + (i === arr.length - 1 ? "(?:s|es)?" : "")));
+    return new RegExp("\\b(" + parts.join("\\s+") + ")\\b", "i");
+  }
   function highlight(sentence, word) {
     const safe = esc(sentence);
     if (!word) return safe;
-    const base = word.toLowerCase().replace(/(e|y)$/, "");
-    const re = new RegExp("(" + reEsc(esc(base)).replace(/\s+/g, "\\s+") + "[a-z]*)", "i");
-    return safe.replace(re, '<mark class="hl">$1</mark>');
+    return safe.replace(termRegex(word), '<mark class="hl">$1</mark>');
   }
 
   // ---------------------------------------------------------
@@ -1278,9 +1292,7 @@
   }
   function drawCloze(box, w, head) {
     const ctx = w.context || w.example || "";
-    const base = w.term.toLowerCase().replace(/(e|y)$/, "");
-    const re = new RegExp("\\b" + reEsc(base).replace(/\s+/g, "\\s+") + "[a-z]*", "i");
-    const m = ctx.match(re);
+    const m = ctx.match(termRegex(w.term));
     const answer = m ? m[0] : w.term;
     const sentence = m ? esc(ctx.slice(0, m.index)) + '<span class="blank">_____</span>' + esc(ctx.slice(m.index + m[0].length)) : `<span class="muted">(Chưa có câu ngữ cảnh)</span> Từ tiếng Anh nghĩa là: <b>${esc(w.vi)}</b>`;
     box.innerHTML = `<div class="flash">${head}<div class="card">
@@ -1441,7 +1453,7 @@
     get S() { return S; },                 // dữ liệu học của bạn (luôn lấy bản mới nhất)
     save, bump, ensureDay,
     speakText, translateVi, openLookup, findWord, splitSentences,
-    speak, highlight, topicOf, addWord, termToWord, schedule, DAY,
+    speak, highlight, topicOf, addWord, termToWord, schedule, DAY, termRegex, findTerm, stemCandidates, closeSheet,
     refresh: () => route(),               // vẽ lại trang hiện tại (vd sau khi đồng bộ kéo dữ liệu mới về)
     data: { TOEIC, EXTRA, TERMS, TOEIC_ARTICLES, ARTICLES, STAGES, DECKS },
     registerPage(id, render) {

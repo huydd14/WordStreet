@@ -12,7 +12,9 @@ Web tự học tiếng Anh, đi từ **600 từ vựng TOEIC cốt lõi** lên t
   - Nút **"Hiện bản dịch"** hiện bản dịch tiếng Việt dưới từng đoạn để dò song song (nên đọc và làm câu hỏi trước rồi mới bật).
   - Mỗi bài có 3 câu đọc hiểu, giải thích tiếng Việt. Bấm vào bất kỳ từ nào để tra: **tự dịch nghĩa tiếng Việt và dịch cả câu ngữ cảnh**, kèm định nghĩa tiếng Anh từ `dictionaryapi.dev`.
 - **Học từ vựng theo bài** (`#learn`): học lần lượt hết từng chủ đề, mỗi bài 5/10/15 từ (B1 trước). Mỗi từ đi qua 4 bước: xem từ → chọn nghĩa → chọn từ → gõ lại vào câu ví dụ. Sai thì từ quay lại tới khi đúng. Học xong, từ tự vào lịch Ôn tập từ ngày mai.
-- **Từ vựng**, gồm 3 bộ (600 từ TOEIC → TOEIC mở rộng → thuật ngữ tài chính):
+- **Ghi từ nhanh**: bôi đen 1 từ hay 1 cụm ở bất kỳ đâu (bài đọc, câu hỏi, đáp án…) rồi bấm "Tra & lưu", hoặc bấm nút **✎ Ghi từ** ở góc màn hình (phím tắt **N**). Bảng tra hiện đè lên trang, bài đang làm không bị mất.
+- **Cụm từ & Idioms · 131 cụm**: phrasal verbs, collocations (make a decision, meet a deadline…) và idioms công sở, kèm ghi chú bẫy TOEIC.
+- **Từ vựng**, gồm 4 bộ (600 từ TOEIC → TOEIC mở rộng → Cụm từ & Idioms → thuật ngữ tài chính):
   - **TOEIC mở rộng · 546 từ**: cụm từ Part 5&6 thiết yếu + bộ từ theo chủ đề sưu tầm, gom thành 12 nhóm, cấp B1/B2/C1. Nghĩa được viết lại cho đúng ngữ cảnh TOEIC.
   - **600 từ TOEIC**: 12 chủ đề hay gặp trong đề thi (Văn phòng, Nhân sự, Họp, Marketing, Mua hàng, Du lịch, Nhà hàng & sự kiện, Ngân hàng, Sản xuất, Nhà ở, Sức khỏe, Hợp đồng & công nghệ). Mỗi từ có IPA, nghĩa tiếng Việt, câu ví dụ và cấp độ **B1/B2**.
   - **150 thuật ngữ tài chính**: 6 chủ đề, kèm IPA, phát âm US/UK, collocation, paraphrase và ghi chú bẫy TOEIC/C1.
@@ -31,6 +33,8 @@ js/app.js           ← code ứng dụng (lõi)
 js/listen.js        ← tính năng Luyện nghe (file riêng, mẫu để tự viết tính năng mới)
 js/learn.js         ← Học từ vựng theo bài (xem → trắc nghiệm → gõ lại)
 js/sync.js          ← Đồng bộ giữa các máy qua GitHub Gist
+js/quicknote.js     ← Bôi đen để tra + nút ✎ Ghi từ
+data/phrases.js     ← 131 cụm từ: phrasal verbs, collocations, idioms
 data/config.js      ← tên web, mục tiêu mỗi ngày, danh sách chủ đề
 data/terms.js       ← 150 thuật ngữ tài chính
 data/toeic600-*.js  ← 600 từ vựng TOEIC (3 file)

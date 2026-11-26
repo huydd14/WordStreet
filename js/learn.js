@@ -13,7 +13,7 @@
   "use strict";
   const { $, $$, esc, shuffle, toast, ICONS } = WS;
   const DECKS = WS.data.DECKS;
-  const ORDER = ["toeic", "extra", "fin"];           // thứ tự nên học các bộ
+  const ORDER = ["toeic", "extra", "phr", "fin"];    // thứ tự nên học các bộ
   const SIZES = [5, 10, 15];
   const LV = { B1: 0, "B1+": 1, B2: 2, TOEIC: 2, C1: 3 };
   const CHUNK = 5;                                    // xem 5 từ thì luyện ngay 5 từ đó
@@ -64,8 +64,7 @@
   // Tách câu ví dụ thành: phần trước + từ cần điền + phần sau
   function clozeOf(t) {
     const ex = t.example || "";
-    const base = t.term.toLowerCase().replace(/(e|y)$/, "");
-    const m = ex.match(new RegExp("\\b" + reEsc(base).replace(/\s+/g, "\\s+") + "[a-z]*", "i"));
+    const m = ex.match(WS.termRegex(t.term));
     return m ? { before: ex.slice(0, m.index), answer: m[0], after: ex.slice(m.index + m[0].length) } : null;
   }
 
