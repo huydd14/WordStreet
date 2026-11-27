@@ -367,7 +367,8 @@
     let i = 0;
     const next = () => {
       if (token !== seqToken) return;
-      if (i >= parts.length) { if (opts.onDone) opts.onDone(); return; }
+      if (i >= parts.length) { if (opts.onPart) opts.onPart(-1); if (opts.onDone) opts.onDone(); return; }
+      if (opts.onPart) opts.onPart(i); // báo đang đọc đoạn thứ i (để tô sáng nút đoạn đó)
       const p = parts[i++];
       const u = new SpeechSynthesisUtterance(p.text);
       u.lang = S.accent; u.rate = opts.rate || 0.95; u.volume = 1;

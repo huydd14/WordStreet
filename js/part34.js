@@ -26,9 +26,12 @@
 
   let cur = null; // { set, answers: [] }
 
-  function play(set) {
-    const parts = set.lines.map((l) => ({ text: l.t, who: l.s, gap: 350 }));
-    WS.speakSeq(parts, { rate: SPEEDS[st().speed].rate });
+  // Đọc bài từ lượt nói thứ `from` tới hết (from = 0: đọc từ đầu). Nút lượt đang đọc được tô sáng.
+  const mark = (i) => $$("#p34-seg [data-seg]").forEach((b) => b.classList.toggle("on", +b.dataset.seg === i));
+  function play(set, from) {
+    from = from || 0;
+    const parts = set.lines.slice(from).map((l) => ({ text: l.t, who: l.s, gap: 350 }));
+    WS.speakSeq(parts, { rate: SPEEDS[st().speed].rate, onPart: (i) => mark(i < 0 ? -1 : from + i) });
   }
 
   function drawSet(set, again) { // again = làm lại: không tính thêm vào mục tiêu / sổ câu sai
@@ -46,6 +49,11 @@
             <button class="p2-play" id="p34-play" title="Nghe (phím R)" aria-label="Nghe"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></button>
             <div class="seg" id="p34-speed">${SPEEDS.map((x, i) => `<button data-sp="${i}" class="${i === s.speed ? "on" : ""}">${x.label}</button>`).join("")}</div>
           </div>
+          <div class="seg-strip" id="p34-seg" style="margin-bottom:14px">
+            <span class="xs muted">Nghe lại từ lượt:</span>
+            ${set.lines.map((l, i) => `<button class="chip" data-seg="${i}" title="Đọc tiếp từ lượt ${i + 1}${WHO[l.s] ? " (" + WHO[l.s] + ")" : ""} tới hết">${i + 1}${WHO[l.s] ? " · " + WHO[l.s] : ""}</button>`).join("")}
+            <button class="chip" id="p34-stop" title="Dừng đọc">■ Dừng</button>
+          </div>
           <div id="p34-qs">${set.qs.map((q, i) => WS.questionHtml(q, i, "pq")).join("")}</div>
           <div id="p34-after" class="hidden">
             <div class="row between" style="margin-top:8px"><b id="p34-score"></b>
@@ -60,6 +68,8 @@
         </div>
       </div>`;
     $("#p34-play").onclick = () => play(set);
+    $$("#p34-seg [data-seg]").forEach((b) => (b.onclick = () => play(set, +b.dataset.seg)));
+    $("#p34-stop").onclick = () => { WS.stopSeq(); mark(-1); };
     $$("#p34-speed [data-sp]").forEach((b) => (b.onclick = () => { s.speed = +b.dataset.sp; WS.save(); $$("#p34-speed button").forEach((x) => x.classList.toggle("on", x === b)); }));
     WS.bindQuestions($("#p34-qs"), set.qs, "pq", (i, ok) => {
       cur.answers[i] = ok;

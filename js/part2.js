@@ -28,10 +28,17 @@
   const isOpenMistake = (it) => { const m = (WS.S.mistakes || {})[keyOf(it)]; return m && !m.fixed; };
 
   // ---------- Giọng đọc: câu hỏi giọng nữ, đáp án giọng nam (WS.speakSeq trong app.js) ----------
-  const stop = () => WS.stopSeq();
+  const stop = () => { WS.stopSeq(); mark(-1); };
+  const partsOf = (item, order) => [{ text: item.q, who: "W", gap: 800 }].concat(order.map((oi, k) => ({ text: "ABC"[k] + ". " + item.opts[oi], who: "M" })));
+  // Tô sáng nút đoạn đang được đọc (-1 = tắt hết)
+  const mark = (i) => $$("#p2-seg [data-seg]").forEach((b) => b.classList.toggle("on", +b.dataset.seg === i));
   function play(item, order, onDone) {
-    const parts = [{ text: item.q, who: "W", gap: 800 }].concat(order.map((oi, k) => ({ text: "ABC"[k] + ". " + item.opts[oi], who: "M" })));
-    WS.speakSeq(parts, { rate: SPEEDS[st().speed].rate, onDone });
+    WS.speakSeq(partsOf(item, order), { rate: SPEEDS[st().speed].rate, onDone, onPart: mark });
+  }
+  // Nghe lại đúng 1 đoạn: 0 = câu hỏi, 1–3 = câu trả lời A–C
+  function playPart(item, order, k) {
+    const p = Object.assign({}, partsOf(item, order)[k], { gap: 0 });
+    WS.speakSeq([p], { rate: SPEEDS[st().speed].rate, onPart: (i) => mark(i < 0 ? -1 : k) });
   }
 
   // ---------- Phiên luyện ----------
@@ -82,7 +89,13 @@
               ${ans !== null ? `<div class="muted small" style="margin-top:4px">${esc(it.vi)}</div>` : ""}
             </div>
           </div>
-          <div class="seg p2-speed" id="p2-speed">${SPEEDS.map((x, i) => `<button data-sp="${i}" class="${i === s.speed ? "on" : ""}">${x.label}</button>`).join("")}</div>
+          <div class="p2-tools">
+            <div class="seg" id="p2-speed">${SPEEDS.map((x, i) => `<button data-sp="${i}" class="${i === s.speed ? "on" : ""}">${x.label}</button>`).join("")}</div>
+            <div class="seg-strip" id="p2-seg" title="Bấm để nghe lại riêng đoạn đó">
+              <span class="xs muted">Nghe lại đoạn:</span>
+              ${["Câu hỏi", "A", "B", "C"].map((l, i) => `<button class="chip" data-seg="${i}">${ICONS.speak} ${l}</button>`).join("")}
+            </div>
+          </div>
           <div class="opts p2-opts">
             ${cur.order.map((oi, k) => {
               const cls = ans === null ? "" : k === right ? "right" : k === ans ? "wrong" : "";
@@ -100,6 +113,7 @@
       </div>`;
     $("#p2-quit").onclick = () => { stop(); ses = null; drawHome(); };
     $("#p2-play").onclick = () => play(it, cur.order);
+    $$("#p2-seg [data-seg]").forEach((b) => (b.onclick = () => playPart(it, cur.order, +b.dataset.seg)));
     $$("#p2-speed [data-sp]").forEach((b) => (b.onclick = () => { s.speed = +b.dataset.sp; WS.save(); drawQ(false); play(it, cur.order); }));
     const tx = $("#p2-text"); if (tx) tx.onchange = () => { s.showText = tx.checked; WS.save(); drawQ(false); };
     $$(".p2-opts .opt").forEach((b) => (b.onclick = () => answer(+b.dataset.k)));

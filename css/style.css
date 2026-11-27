@@ -369,6 +369,10 @@ p { margin: 0; }
 .p2-play svg { width: 24px; height: 24px; margin-left: 3px; }
 .p2-q { font-family: var(--serif); font-size: 19px; line-height: 1.45; }
 .p2-speed { margin-bottom: 14px; }
+.p2-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-bottom: 14px; }
+.seg-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.seg-strip .chip { padding: 4px 10px; font-size: 13px; display: inline-flex; align-items: center; gap: 5px; }
+.seg-strip .chip svg { width: 14px; height: 14px; }
 
 /* Gợi ý làm bài kiểm tra đầu vào (trang Hôm nay) */
 .callout {
