@@ -190,16 +190,21 @@
   function startSession(src, list) {
     const pool = list || shuffle(src.build()).slice(0, SESSION_SIZE);
     if (!pool.length) { toast("Chưa có câu cho loại này."); return; }
-    session = { src, list: pool, idx: 0, results: [] };
+    session = { src, list: pool, idx: 0, results: [], counted: [] };
     drawItem();
   }
 
-  function drawItem() {
+  // fresh = true: làm lại câu này từ đầu (bỏ qua bài đã chấm trước đó)
+  function drawItem(fresh) {
     const s = session, item = s.list[s.idx], st = stats();
+    const before = fresh ? null : s.results[s.idx]; // câu đã làm rồi (quay lại xem) → hiện lại kết quả cũ
     let plays = 0, checked = false;
     $("#view").innerHTML = `
-      <div class="row" style="max-width:760px;margin:0 auto 14px">
-        <button class="btn btn-ghost btn-sm" id="ls-quit">${ICONS.back} Thoát</button><span class="spacer"></span>
+      <div class="row" style="max-width:760px;margin:0 auto 14px;gap:6px">
+        <button class="btn btn-ghost btn-sm" id="ls-quit">${ICONS.back} Thoát</button>
+        <button class="btn btn-ghost btn-sm" id="ls-prev" ${s.idx ? "" : "disabled"} title="Quay lại câu trước">← Câu trước</button>
+        ${s.results[s.idx + 1] ? `<button class="btn btn-ghost btn-sm" id="ls-fwd">Câu sau →</button>` : ""}
+        <span class="spacer"></span>
         <span class="muted small">${esc(s.src.name)} · Câu ${s.idx + 1}/${s.list.length}</span></div>
       <div class="bar" style="max-width:760px;margin:0 auto 16px"><span style="width:${(s.idx / s.list.length) * 100}%"></span></div>
       <div class="card dict-card">
@@ -219,7 +224,9 @@
         <div id="ls-result"></div>
       </div>`;
 
+    const view = $("#view").firstElementChild;
     const play = (rate) => {
+      if (!view.isConnected) return; // đã chuyển sang câu/trang khác thì thôi
       if (WS.speakText(item.text, rate)) { plays++; $("#ls-plays").textContent = `Đã nghe ${plays} lần`; }
       if (!checked) $("#ls-input").focus();
     };
@@ -227,16 +234,22 @@
     $("#ls-slow").onclick = () => play(Math.min(st.rate, 0.6));
     $("#ls-hint").onclick = () => { $("#ls-hint-line").textContent = hintOf(item.text); $("#ls-hint-line").classList.remove("hidden"); $("#ls-input").focus(); };
     $("#ls-quit").onclick = () => { stopSpeech(); session = null; renderHome(); };
+    const goTo = (i) => { stopSpeech(); s.idx = i; drawItem(); };
+    $("#ls-prev").onclick = () => { if (s.idx > 0) goTo(s.idx - 1); };
+    const fw = $("#ls-fwd"); if (fw) fw.onclick = () => goTo(s.idx + 1);
 
-    const check = (gaveUp) => {
+    const check = (gaveUp, restore) => {
       if (checked) return;
-      const typed = $("#ls-input").value.trim();
-      if (!typed && !gaveUp) { toast("Gõ những gì bạn nghe được trước nhé (đúng một phần cũng được)."); return; }
+      const typed = restore ? restore.typed : $("#ls-input").value.trim();
+      if (!typed && !gaveUp && !restore) { toast("Gõ những gì bạn nghe được trước nhé (đúng một phần cũng được)."); return; }
       checked = true;
       const g = grade(item.text, gaveUp ? "" : typed);
-      s.results.push({ item, score: g.score, typed });
-      st.sentences++;
-      WS.bump("listen"); // cộng vào mục tiêu hôm nay + lưu dữ liệu
+      if (restore) $("#ls-input").value = typed;
+      else {
+        s.results[s.idx] = { item, score: g.score, typed: gaveUp ? "" : typed };
+        // Mục tiêu hôm nay chỉ cộng lần đầu làm câu này (làm lại không cộng thêm)
+        if (!s.counted[s.idx]) { s.counted[s.idx] = true; st.sentences++; WS.bump("listen"); } else WS.save();
+      }
       $("#ls-input").disabled = true;
       $("#ls-check").classList.add("hidden"); $("#ls-skip").classList.add("hidden");
       const tone = g.score >= 90 ? "good" : g.score >= 60 ? "mid" : "low";
@@ -252,7 +265,8 @@
           <div class="vi-line" id="ls-vi"><span class="spin"></span> Đang dịch…</div>
           <p class="muted xs" style="margin-top:8px">${esc(item.from)}</p>
           <div class="row" style="margin-top:12px">
-            <button class="btn" id="ls-again">${ICONS.speak} Nghe lại</button><span class="spacer"></span>
+            <button class="btn" id="ls-again">${ICONS.speak} Nghe lại</button>
+            <button class="btn btn-ghost" id="ls-redo" title="Xoá bài đã gõ, nghe và gõ lại">↻ Làm lại câu này</button><span class="spacer"></span>
             <button class="btn btn-primary" id="ls-next">${s.idx + 1 < s.list.length ? "Câu tiếp →" : "Xem kết quả"}</button>
           </div>
         </div>`;
@@ -262,7 +276,8 @@
         if (w) WS.openLookup(keyOf(w.dataset.w).replace(/'s$/, ""), { context: item.text, source: "Luyện nghe" });
       };
       $("#ls-again").onclick = () => WS.speakText(item.text, st.rate);
-      $("#ls-next").onclick = () => { s.idx++; if (s.idx >= s.list.length) drawSummary(); else drawItem(); };
+      $("#ls-redo").onclick = () => { stopSpeech(); drawItem(true); };
+      $("#ls-next").onclick = () => { stopSpeech(); s.idx++; if (s.idx >= s.list.length) drawSummary(); else drawItem(); };
       $("#ls-next").focus();
     };
     $("#ls-check").onclick = () => check(false);
@@ -273,7 +288,8 @@
       else if (e.key === "ArrowDown") { e.preventDefault(); play(Math.min(st.rate, 0.6)); }
     });
 
-    setTimeout(() => play(st.rate), 300); // tự đọc khi mở câu mới
+    if (before) check(!before.typed, before); // quay lại câu đã làm: hiện lại kết quả cũ (bấm "Nghe lại" để nghe)
+    else setTimeout(() => play(st.rate), 300); // tự đọc khi mở câu mới
   }
 
   function drawSummary() {

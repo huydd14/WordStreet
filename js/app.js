@@ -294,13 +294,35 @@
     }
     tts(text);
   }
+  // ----- Chọn giọng đọc RÕ nhất máy có -----
+  // Giọng "Natural / Online / Neural" (Edge) và "Google" (Chrome) là giọng AI, rõ và to hơn hẳn
+  // giọng cũ của Windows (Zira, David "Desktop") vốn nhỏ, rè, nghe như robot.
+  const CHILD = /\b(ana|maisie)\b/i; // giọng trẻ con: không hợp đề TOEIC
+  function voiceScore(v) {
+    const n = v.name;
+    if (/natural|neural/i.test(n)) return /multilingual/i.test(n) ? 3.5 : 4; // giọng đa ngôn ngữ đôi khi đọc lơ lớ
+    if (/online/i.test(n)) return 3;
+    if (/google|premium|enhanced|siri/i.test(n)) return 2;
+    if (/desktop|espeak/i.test(n)) return 0;
+    return 1;
+  }
+  // Danh sách giọng tiếng Anh, giọng tốt nhất đứng đầu (giọng đúng US/UK được ưu tiên trước)
+  function enVoices() {
+    if (!("speechSynthesis" in window)) return [];
+    const all = speechSynthesis.getVoices().filter((v) => /^en[-_]/i.test(v.lang) && !CHILD.test(v.name));
+    const mine = all.filter((v) => v.lang.replace("_", "-") === S.accent);
+    return (mine.length ? mine : all).slice().sort((a, b) => voiceScore(b) - voiceScore(a));
+  }
+  const bestVoice = () => enVoices()[0] || null;
+
   function tts(text) {
     if (!("speechSynthesis" in window)) { toast("Trình duyệt không hỗ trợ đọc phát âm."); return; }
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = S.accent;
     u.rate = text.length > 40 ? 0.95 : 0.85;
-    const v = speechSynthesis.getVoices().find((x) => x.lang === S.accent);
+    u.volume = 1;
+    const v = bestVoice();
     if (v) u.voice = v;
     speechSynthesis.speak(u);
   }
@@ -312,8 +334,8 @@
     const u = new SpeechSynthesisUtterance(text);
     u.lang = S.accent;
     u.rate = rate || 0.9;
-    const voices = speechSynthesis.getVoices();
-    const v = voices.find((x) => x.lang === S.accent) || voices.find((x) => /^en[-_]/i.test(x.lang));
+    u.volume = 1;
+    const v = bestVoice();
     if (v) u.voice = v;
     if (onEnd) u.onend = onEnd;
     speechSynthesis.speak(u);
@@ -324,12 +346,10 @@
   // parts: [{ text, who: "M" | "W" | "N" }]   M = nam, W = nữ, N = người dẫn (giọng mặc định)
   // Trả về hàm stop() để dừng giữa chừng.
   const FEMALE = /zira|aria|jenny|susan|hazel|libby|sonia|samantha|karen|moira|tessa|victoria|fiona|serena|female|michelle|emma|natasha|clara|sara|ava|allison|google us english|google uk english female/i;
-  const MALE = /david|mark|guy|george|ryan|daniel|alex|fred|oliver|male|christopher|eric|roger|thomas|william|brian|andrew|google uk english male/i;
+  const MALE = /david|mark|guy|george|ryan|daniel|alex|fred|oliver|male|christopher|eric|roger|thomas|william|brian|andrew|steffan|google uk english male/i;
   function voiceFor(who) {
-    if (!("speechSynthesis" in window)) return null;
-    const all = speechSynthesis.getVoices().filter((v) => /^en[-_]/i.test(v.lang));
-    const mine = all.filter((v) => v.lang.replace("_", "-") === S.accent);
-    const pool = mine.length ? mine : all;
+    const pool = enVoices(); // đã xếp giọng rõ nhất lên đầu
+    if (!pool.length) return null;
     const female = pool.filter((v) => FEMALE.test(v.name));
     const male = pool.filter((v) => MALE.test(v.name) && !FEMALE.test(v.name));
     if (who === "W") return female[0] || pool[0] || null;
@@ -350,12 +370,12 @@
       if (i >= parts.length) { if (opts.onDone) opts.onDone(); return; }
       const p = parts[i++];
       const u = new SpeechSynthesisUtterance(p.text);
-      u.lang = S.accent; u.rate = opts.rate || 0.95;
+      u.lang = S.accent; u.rate = opts.rate || 0.95; u.volume = 1;
       const v = voiceFor(p.who);
       if (v) u.voice = v;
       // Không tìm được giọng nam/nữ riêng thì đổi cao độ cho dễ phân biệt
       const vq = voiceFor("N");
-      if (p.who === "M" && (!v || v === vq) && voiceFor("W") === vq) u.pitch = 0.75;
+      if (p.who === "M" && (!v || v === vq) && voiceFor("W") === vq) u.pitch = 0.85; // hạ nhẹ thôi, hạ nhiều nghe bị ù
       if (p.pitch) u.pitch = p.pitch;
       u.onend = () => setTimeout(next, p.gap != null ? p.gap : 450);
       u.onerror = () => setTimeout(next, 100);
@@ -1626,7 +1646,7 @@
     save, bump, ensureDay,
     speakText, translateVi, openLookup, findWord, splitSentences,
     speak, highlight, topicOf, addWord, termToWord, schedule, DAY, termRegex, findTerm, stemCandidates, closeSheet,
-    dueWords, REVIEW_CAP, noteMistake, openMistakes, isLearned, updateBadges, speakSeq, stopSeq, questionHtml, bindQuestions,
+    dueWords, REVIEW_CAP, noteMistake, openMistakes, isLearned, updateBadges, speakSeq, stopSeq, voiceFor, questionHtml, bindQuestions,
     get TOEIC_QUIZ() { return TOEIC_QUIZ; },
     refresh: () => route(),               // vẽ lại trang hiện tại (vd sau khi đồng bộ kéo dữ liệu mới về)
     data: { TOEIC, EXTRA, TERMS, TOEIC_ARTICLES, ARTICLES, STAGES, DECKS },

@@ -641,6 +641,7 @@ mark.hl { background: linear-gradient(transparent 56%, var(--marker) 56%); color
 .ln-top { display: flex; align-items: center; gap: 12px; }
 .ln-top .icon-btn { font-size: 14px; }
 .ln-bar { flex: 1; height: 8px; }
+.p2-nav { display: flex; justify-content: space-between; gap: 8px; margin: 8px 0 4px; min-height: 32px; }
 .ln-sub { margin: 8px 0 12px 46px; gap: 8px; flex-wrap: wrap; }
 .ln-sub .tag { margin-right: 6px; }
 .nowrap { white-space: nowrap; }

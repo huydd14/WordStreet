@@ -31,14 +31,14 @@
     WS.speakSeq(parts, { rate: SPEEDS[st().speed].rate });
   }
 
-  function drawSet(set) {
-    cur = { set, answers: [] };
+  function drawSet(set, again) { // again = làm lại: không tính thêm vào mục tiêu / sổ câu sai
+    cur = { set, answers: [], again: !!again };
     const s = st();
     $("#view").innerHTML = `
       <div class="learn p34">
         <div class="ln-top"><a class="icon-btn" href="#part34" title="Danh sách bài">${ICONS.back}</a>
           <span class="tag">${set.part === 3 ? "Part 3 · Hội thoại" : "Part 4 · Bài nói"}</span><span class="tag">${esc(set.level)}</span>
-          <span class="spacer"></span></div>
+          <span class="spacer"></span>${prevSet(set) ? `<button class="btn btn-ghost btn-sm" id="p34-prev" title="Bài liền trước trong danh sách">← Bài trước</button>` : ""}</div>
         <div class="card ln-card">
           <h2 class="p34-title">${esc(set.title)}</h2>
           <p class="muted small">Bước 1: đọc lướt 3 câu hỏi bên dưới. Bước 2: bấm nghe. Đề thật chỉ cho nghe 1 lần, cố gắng đừng nghe lại.</p>
@@ -54,7 +54,7 @@
               ${set.lines.map((l) => `<p>${WHO[l.s] ? `<b>${WHO[l.s]}:</b> ` : ""}${esc(l.t)}</p>`).join("")}
               <p class="xs muted">Bôi đen chữ bất kỳ để tra và lưu từ.</p>
             </div>
-            <div class="ln-actions"><a class="btn btn-ghost" href="#part34">Danh sách bài</a>
+            <div class="ln-actions"><span class="row" style="gap:8px;flex-wrap:wrap"><a class="btn btn-ghost" href="#part34">Danh sách bài</a><button class="btn" id="p34-redo">↻ Làm lại bài này</button></span>
               ${nextSet(set) ? `<button class="btn btn-primary" id="p34-next">Bài tiếp theo</button>` : ""}</div>
           </div>
         </div>
@@ -63,8 +63,7 @@
     $$("#p34-speed [data-sp]").forEach((b) => (b.onclick = () => { s.speed = +b.dataset.sp; WS.save(); $$("#p34-speed button").forEach((x) => x.classList.toggle("on", x === b)); }));
     WS.bindQuestions($("#p34-qs"), set.qs, "pq", (i, ok) => {
       cur.answers[i] = ok;
-      WS.noteMistake("p34", mkKey(set, set.qs[i]), ok);
-      WS.bump("listen");
+      if (!cur.again) { WS.noteMistake("p34", mkKey(set, set.qs[i]), ok); WS.bump("listen"); }
       if (cur.answers.filter((x) => x !== undefined).length === set.qs.length) {
         const c = cur.answers.filter(Boolean).length;
         s.done[set.id] = Math.max(s.done[set.id] || 0, c);
@@ -75,8 +74,11 @@
     });
     $("#p34-tx").onclick = () => $("#p34-trans").classList.toggle("hidden");
     const nx = $("#p34-next"); if (nx) nx.onclick = () => { location.hash = "#part34/" + nextSet(set).id; };
+    $("#p34-redo").onclick = () => { WS.stopSeq(); drawSet(set, true); window.scrollTo(0, 0); };
+    const pv = $("#p34-prev"); if (pv) pv.onclick = () => { WS.stopSeq(); location.hash = "#part34/" + prevSet(set).id; };
   }
 
+  function prevSet(set) { const list = visible(), i = list.indexOf(set); return i > 0 ? list[i - 1] : null; }
   function visible() { const f = st().filter; return SETS.filter((x) => f === "all" || String(x.part) === f); }
   function nextSet(set) {
     const list = visible(), i = list.indexOf(set);

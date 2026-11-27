@@ -35,7 +35,7 @@
   }
 
   // ---------- Phiên luyện ----------
-  let ses = null; // { list:[{it, order}], idx, results:[bool], answered, mode }
+  let ses = null; // { list:[{it, order}], idx, picks:[vị trí đã chọn], results:[bool], counted:[bool], answered, mode }
 
   function pickList(mode) {
     const s = st();
@@ -50,7 +50,7 @@
   function start(mode) {
     const list = pickList(mode);
     if (!list.length) { toast(mode === "mistakes" ? "Không còn câu Part 2 nào trong sổ câu sai." : "Chưa có câu hỏi."); return; }
-    ses = { list, idx: 0, results: [], answered: null, mode };
+    ses = { list, idx: 0, picks: [], results: [], counted: [], answered: null, mode };
     history.replaceState(null, "", "#part2");
     drawQ(true);
   }
@@ -67,6 +67,10 @@
           <button class="icon-btn" id="p2-quit" title="Thoát">${ICONS.back}</button>
           <div class="bar ln-bar"><span style="width:${(ses.idx / ses.list.length) * 100}%"></span></div>
           <span class="muted small nowrap">${ses.idx + 1}/${ses.list.length} · đúng ${done}</span>
+        </div>
+        <div class="p2-nav">
+          <button class="btn btn-ghost btn-sm" id="p2-prev" ${ses.idx ? "" : "disabled"} title="Quay lại câu trước (phím ←)">← Câu trước</button>
+          ${ses.picks[ses.idx + 1] != null ? `<button class="btn btn-ghost btn-sm" id="p2-fwd" title="Phím →">Câu sau →</button>` : ""}
         </div>
         <div class="card ln-card">
           <div class="row between"><span>${ans !== null ? `<span class="tag">${esc(TYPE_VI[it.type] || it.type)}</span>` : ""}</span><span class="tag">${esc(it.level)}</span></div>
@@ -88,9 +92,10 @@
           </div>
           ${ans !== null ? `<div class="explain"><b class="${ans === right ? "ok" : "no"}">${ans === right ? "Chính xác!" : "Chưa đúng. Đáp án là " + "ABC"[right] + "."}</b> ${esc(it.ex)}</div>
             <div class="ln-actions"><span class="xs muted">Bôi đen chữ bất kỳ để tra và lưu từ.</span>
-              <button class="btn btn-primary" data-next>${ses.idx + 1 < ses.list.length ? "Câu tiếp" : "Xem kết quả"} <span class="kbd">Enter</span></button></div>`
+              <span class="row" style="gap:8px;flex-wrap:wrap"><button class="btn" id="p2-retry" title="Giấu đáp án, nghe và chọn lại">↻ Làm lại câu này</button>
+              <button class="btn btn-primary" data-next>${ses.idx + 1 < ses.list.length ? "Câu tiếp" : "Xem kết quả"} <span class="kbd">Enter</span></button></span></div>`
           : `<div class="ln-actions"><label class="row small muted" style="gap:8px;cursor:pointer"><input type="checkbox" id="p2-text" ${s.showText ? "checked" : ""}/> Hiện chữ (cho người mới)</label>
-              <span class="xs muted">Phím 1–3 để chọn, R để nghe lại</span></div>`}
+              <span class="xs muted">Phím 1–3 để chọn, R để nghe lại, ← câu trước</span></div>`}
         </div>
       </div>`;
     $("#p2-quit").onclick = () => { stop(); ses = null; drawHome(); };
@@ -99,6 +104,9 @@
     const tx = $("#p2-text"); if (tx) tx.onchange = () => { s.showText = tx.checked; WS.save(); drawQ(false); };
     $$(".p2-opts .opt").forEach((b) => (b.onclick = () => answer(+b.dataset.k)));
     const nx = $("[data-next]"); if (nx) { nx.onclick = next; nx.focus(); }
+    $("#p2-prev").onclick = prev;
+    const fw = $("#p2-fwd"); if (fw) fw.onclick = next;
+    const rt = $("#p2-retry"); if (rt) rt.onclick = retry;
     if (autoplay) setTimeout(() => play(it, cur.order), 250);
   }
 
@@ -108,16 +116,31 @@
     const ok = cur.order[k] === it.a;
     stop();
     ses.answered = k;
-    ses.results.push(ok);
-    s.seen[keyOf(it)] = 1; s.t++; if (ok) s.c++;
-    WS.noteMistake("p2", it.q, ok);
-    WS.bump("listen");
+    ses.picks[ses.idx] = k;
+    ses.results[ses.idx] = ok;
+    // Thống kê + sổ câu sai chỉ tính LẦN ĐẦU trả lời (làm lại không xoá lỗi lần đầu)
+    if (!ses.counted[ses.idx]) {
+      ses.counted[ses.idx] = true;
+      s.seen[keyOf(it)] = 1; s.t++; if (ok) s.c++;
+      WS.noteMistake("p2", it.q, ok);
+      WS.bump("listen");
+    } else WS.save();
     drawQ(false);
   }
-  function next() {
+  // Đi tới câu idx: câu đã làm thì hiện lại đáp án đã chọn, câu chưa làm thì tự đọc
+  function go(idx, autoplay) {
     stop();
-    ses.idx++; ses.answered = null;
-    if (ses.idx >= ses.list.length) drawDone(); else drawQ(true);
+    ses.idx = idx;
+    if (ses.idx >= ses.list.length) return drawDone();
+    ses.answered = ses.picks[idx] != null ? ses.picks[idx] : null;
+    drawQ(autoplay === undefined ? ses.answered === null : autoplay);
+  }
+  const next = () => go(ses.idx + 1);
+  const prev = () => { if (ses.idx > 0) go(ses.idx - 1, true); };
+  // Làm lại câu đang xem: giấu đáp án, đọc lại từ đầu
+  function retry() {
+    ses.picks[ses.idx] = null;
+    go(ses.idx, true);
   }
 
   function drawDone() {
@@ -187,6 +210,8 @@
     if (ses.answered === null && ["1", "2", "3", "a", "b", "c"].includes(k)) { e.preventDefault(); answer("123".includes(k) ? +k - 1 : "abc".indexOf(k)); }
     else if (k === "r") { e.preventDefault(); play(cur.it, cur.order); }
     else if (e.key === "Enter" && ses.answered !== null) { e.preventDefault(); next(); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); prev(); }
+    else if (e.key === "ArrowRight" && (ses.answered !== null || ses.picks[ses.idx + 1] != null)) { e.preventDefault(); next(); }
   });
   window.addEventListener("hashchange", () => { if (!(location.hash || "").startsWith("#part2")) stop(); });
 
